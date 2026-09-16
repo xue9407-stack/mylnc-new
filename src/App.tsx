@@ -14,6 +14,7 @@ import { SettingsView } from './components/SettingsView';
 import { CategoryChips } from './components/CategoryChips';
 import { loadAllIntimacies, saveIntimacy, getIntimacyData, addDailyChatIntimacy, AddChatIntimacyResult } from './utils/intimacy';
 import { ROLE_MEDIA_MAP } from './data/rolePortraits';
+import { DEFAULT_ROLES } from './data/rolesData';
 import {
   Home,
   MessageSquare,
@@ -55,11 +56,65 @@ export default function App() {
   const [loginTip, setLoginTip] = useState('');
 
   // Data States
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [roles, setRoles] = useState<Role[]>(() => {
+    try {
+      const savedCustom = localStorage.getItem('custom_created_roles');
+      if (savedCustom) {
+        const parsed = JSON.parse(savedCustom);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return [...parsed, ...DEFAULT_ROLES];
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return DEFAULT_ROLES;
+  });
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [homeSearchKeyword, setHomeSearchKeyword] = useState<string>('');
   const [exploreKeyword, setExploreKeyword] = useState<string>('');
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    try {
+      const savedConvs = localStorage.getItem('conversations');
+      if (savedConvs) {
+        const parsed = JSON.parse(savedConvs);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return [
+      {
+        name: '陆景琛',
+        roleId: 'lujingchen',
+        emoji: '🤵',
+        cover: 'c-domineering',
+        lastMsg: '女人，你成功引起了我的注意。今晚吃饭了没？',
+        time: '15:42',
+        unread: 1,
+      },
+      {
+        name: '林小柔',
+        roleId: 'linxiaorou',
+        emoji: '👧',
+        cover: 'c-yandere-girl',
+        lastMsg: '哥哥你终于来了...我等你好久了。今天过得开心吗？',
+        time: '14:20',
+        unread: 2,
+      },
+      {
+        name: '林慕白',
+        roleId: 'linmubai',
+        emoji: '👨‍🎓',
+        cover: 'c-warm-senpai',
+        lastMsg: '最近学习压力大吗？有什么不懂随时问我。',
+        time: '昨天',
+        unread: 0,
+      },
+    ];
+  });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState<boolean>(false);
   const [intimacies, setIntimacies] = useState<Record<string, number>>(() => loadAllIntimacies());
