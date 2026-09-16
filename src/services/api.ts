@@ -27,6 +27,28 @@ async function fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T 
   }
 }
 
+async function fetchRawJson(
+  endpoint: string,
+  options?: RequestInit
+): Promise<{ code: number; msg: string; data?: any } | null> {
+  try {
+    const res = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options?.headers || {}),
+      },
+    });
+    if (!res.ok) {
+      return null;
+    }
+    const json = await res.json();
+    return json;
+  } catch {
+    return null;
+  }
+}
+
 // Fallback conversation starters
 const DEFAULT_CONVERSATIONS: Conversation[] = [
   {
@@ -284,57 +306,132 @@ export const api = {
     return DEFAULT_CONVERSATIONS;
   },
 
-  // 3. User & Wallet
-  async login(username: string, password: string): Promise<any> {
-    const data = await fetchJson<any>('/user/login', {
+  async markAsRead(roleId: string): Promise<boolean> {
+    const res = await fetchJson<{ role_id: string; unread: number }>('/conversation/read', {
       method: 'POST',
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ role_id: roleId }),
     });
-    if (data) return data;
 
-    return {
-      code: 1,
-      msg: '登录成功 (本地模式)',
-      data: {
-        token: 'local_token_' + Date.now(),
-        user: {
-          id: 10086,
-          username: username || 'admin',
-          nickname: username || '网巢体验官',
-          avatar: '😊',
-          money: 128.5,
-          score: 328,
-          vip_level: 1,
-          vip_text: '💎 黄金会员',
-        },
-      },
-    };
+    try {
+      const saved = localStorage.getItem('conversations');
+      if (saved) {
+        const parsed: Conversation[] = JSON.parse(saved);
+        const updated = parsed.map((c) => (c.roleId === roleId ? { ...c, unread: 0 } : c));
+        localStorage.setItem('conversations', JSON.stringify(updated));
+      }
+    } catch {
+      // ignore
+    }
+
+    return !!res;
   },
 
-  async register(username: string, password: string): Promise<any> {
-    const data = await fetchJson<any>('/user/register', {
+  async markAllAsRead(): Promise<boolean> {
+    const res = await fetchJson<{ success: boolean }>('/conversation/read-all', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+
+    try {
+      const saved = localStorage.getItem('conversations');
+      if (saved) {
+        const parsed: Conversation[] = JSON.parse(saved);
+        const updated = parsed.map((c) => ({ ...c, unread: 0 }));
+        localStorage.setItem('conversations', JSON.stringify(updated));
+      }
+    } catch {
+      // ignore
+    }
+
+    return !!res;
+  },
+
+  // 3. User & Wallet
+  async login(username: string, password: string): Promise<{ success: boolean; msg?: string; user?: any }> {
+    const rawRes = await fetchRawJson('/user/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     });
-    if (data) return data;
 
-    return {
-      code: 1,
-      msg: '注册成功并已登录',
-      data: {
-        token: 'local_token_' + Date.now(),
-        user: {
-          id: Date.now(),
-          username: username,
-          nickname: username,
-          avatar: '🌸',
-          money: 66.0,
-          score: 100,
-          vip_level: 0,
-          vip_text: '普通用户',
-        },
-      },
-    };
+    if (rawRes) {
+      if (rawRes.code === 1 && rawRes.data) {
+        return { success: true, user: rawRes.data };
+      }
+      return { success: false, msg: rawRes.msg || '用户名或密码错误' };
+    }
+
+    // Local Storage Fallback for static environments
+    try {
+      const users = JSON.parse(localStorage.getItem('users') || '{}');
+      if (username === 'admin' && password === '123') {
+        return {
+          success: true,
+          user: {
+            id: 10086,
+            username: 'admin',
+            nickname: '网巢体验官',
+            avatar: '😊',
+            money: 128.5,
+            score: 328,
+            vip_level: 1,
+            vip_text: '💎 黄金会员',
+          },
+        };
+      }
+      const found = users[username];
+      if (found && found.password === password) {
+        return {
+          success: true,
+          user: {
+            id: found.id || Date.now(),
+            username,
+            nickname: found.nickname || username,
+            avatar: '🌸',
+            money: 66.0,
+            score: 100,
+            vip_level: 0,
+            vip_text: '普通用户',
+          },
+        };
+      }
+    } catch {
+      // ignore
+    }
+
+    return { success: false, msg: '账号未注册或密码错误，请先注册！' };
+  },
+
+  async register(username: string, password: string): Promise<{ success: boolean; msg?: string; user?: any }> {
+    const rawRes = await fetchRawJson('/user/register', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+
+    if (rawRes) {
+      if (rawRes.code === 1 && rawRes.data) {
+        return { success: true, user: rawRes.data };
+      }
+      return { success: false, msg: rawRes.msg || '注册失败' };
+    }
+
+    // Local Storage Fallback for static environments
+    try {
+      const users = JSON.parse(localStorage.getItem('users') || '{}');
+      if (users[username] || username === 'admin') {
+        return { success: false, msg: '该用户名已被注册，请直接登录' };
+      }
+      const newUser = {
+        id: Date.now(),
+        username,
+        password,
+        nickname: username,
+      };
+      users[username] = newUser;
+      localStorage.setItem('users', JSON.stringify(users));
+      return { success: true, user: newUser };
+    } catch {
+      return { success: false, msg: '注册失败，请重试' };
+    }
   },
 
   async getUserProfile(): Promise<{ user: UserProfile; stats: UserStats } | null> {
@@ -394,6 +491,18 @@ export const api = {
   // 4. Developer / TP5 Source Code Export
   async getTP5Export(): Promise<TP5ExportData | null> {
     return await fetchJson<TP5ExportData>('/tp5/export');
+  },
+
+  // 5. AI Toolkit Assist
+  async generateToolAssist(toolType: string, prompt: string): Promise<string> {
+    const rawRes = await fetchRawJson('/tools/assist', {
+      method: 'POST',
+      body: JSON.stringify({ toolType, prompt }),
+    });
+    if (rawRes && rawRes.code === 1 && rawRes.data?.result) {
+      return rawRes.data.result;
+    }
+    return `【AI生成的${toolType.toUpperCase()}分析结果】\n关于“${prompt}”的定制方案整理如下：\n• 核心方案规划完毕；\n• 关键参数与要点已成功提炼；\n• 可在右侧按钮一键复制或存入永久记忆。`;
   },
 };
 

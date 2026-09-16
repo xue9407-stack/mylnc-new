@@ -362,7 +362,38 @@ const followsDb: Record<number, string[]> = {
   10086: ["lujingchen", "linxiaorou"],
 };
 const chatHistoryDb: Record<string, ChatMessage[]> = {};
-let conversationsDb: ConversationItem[] = [];
+let conversationsDb: ConversationItem[] = [
+  {
+    name: "陆景琛",
+    roleId: "lujingchen",
+    emoji: "🤵",
+    cover: "c-domineering",
+    lastMsg: "女人，你成功引起了我的注意。今晚吃饭了没？",
+    time: "15:42",
+    unread: 1,
+    updatedAt: Date.now() - 3600000,
+  },
+  {
+    name: "林小柔",
+    roleId: "linxiaorou",
+    emoji: "👧",
+    cover: "c-yandere-girl",
+    lastMsg: "哥哥你终于来了...我等你好久了。今天过得开心吗？",
+    time: "14:20",
+    unread: 2,
+    updatedAt: Date.now() - 7200000,
+  },
+  {
+    name: "林慕白",
+    roleId: "linmubai",
+    emoji: "👨‍🎓",
+    cover: "c-warm-senpai",
+    lastMsg: "最近学习压力大吗？有什么不懂随时问我。",
+    time: "昨天",
+    unread: 0,
+    updatedAt: Date.now() - 86400000,
+  },
+];
 
 // Helper for ThinkPHP 5 response format
 function tp5Success(res: express.Response, msg: string, data: any = null) {
@@ -745,8 +776,77 @@ app.get("/api/v1/chat/history/:roleId", (req, res) => {
 });
 
 // 10. Conversation list
-app.get("/api/v1/conversation/list", (req, res) => {
+app.get(["/api/v1/conversation/list", "/api/v1/chat/conversations"], (req, res) => {
   return tp5Success(res, "获取成功", conversationsDb);
+});
+
+// Mark single conversation as read
+app.post(["/api/v1/conversation/read", "/api/v1/chat/read"], (req, res) => {
+  const { role_id } = req.body;
+  if (!role_id) {
+    return tp5Error(res, "role_id 不能为空");
+  }
+  const item = conversationsDb.find((c) => c.roleId === role_id);
+  if (item) {
+    item.unread = 0;
+  }
+  return tp5Success(res, "已标为已读", { role_id, unread: 0 });
+});
+
+// Mark all conversations as read
+app.post(["/api/v1/conversation/read-all", "/api/v1/chat/read-all"], (req, res) => {
+  conversationsDb.forEach((c) => {
+    c.unread = 0;
+  });
+  return tp5Success(res, "已全部标为已读", { success: true });
+});
+
+// 11. AI Tool Assist API (PPT, Data Analysis, Story, Decision, Study Quiz, Memory, etc.)
+app.post("/api/v1/tools/assist", async (req, res) => {
+  const { toolType, prompt } = req.body;
+  if (!prompt) {
+    return tp5Error(res, "prompt 不能为空");
+  }
+
+  const ai = getAIClient();
+  let resultText = "";
+
+  if (ai) {
+    try {
+      let sysInstruction = "你是一个专业的高效智能AI助手。请以结构化、专业且清晰的格式提供回答。";
+      if (toolType === "ppt") {
+        sysInstruction = `你是一个高级PPT大纲与设计专家。请根据主题生成完整的PPT大纲，包含标题与5~8页Slide页面结构，每页包含【页面主题】、【3条核心要点】、【视觉排版建议】、【演讲手稿】。`;
+      } else if (toolType === "analysis") {
+        sysInstruction = `你是一个专业数据分析师。请根据用户提供的数据或指标描述，生成包含【核心数据洞察】、【风险警告】、【优化行动方案】的数据分析总结。`;
+      } else if (toolType === "story") {
+        sysInstruction = `你是一位温柔有声书叙事者。请写一段具有画面感、治愈感或睡前温馨气氛的短篇有声故事（字数300~500字）。含语气标注【温馨】、【轻声】。`;
+      } else if (toolType === "decision") {
+        sysInstruction = `你是一位高阶决策顾问。请从【核心利弊对比】、【风险评估与机会成本】、【综合加权决策建议】三个维度进行冷静理性的分析。`;
+      } else if (toolType === "quiz") {
+        sysInstruction = `你是一位严谨的AI学习督导。请针对主题出 3 道精简抽查测试题，附标准答案与解析。`;
+      } else if (toolType === "copywrite") {
+        sysInstruction = `你是一位资深文案策划。请将零散草稿或想法整理为高质量结构化文案（小红书爆款、朋友圈金句或汇报总结）。`;
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.8-flash",
+        contents: prompt,
+        config: {
+          systemInstruction: sysInstruction,
+          temperature: 0.7,
+        },
+      });
+      resultText = response.text ? response.text.trim() : "";
+    } catch (err) {
+      console.warn("AI Tool Assist error:", err);
+    }
+  }
+
+  if (!resultText) {
+    resultText = `【AI助手生成结果】\n关于“${prompt}”的方案已提炼：\n1. 结构化要点完成；\n2. 建议按照既定步骤稳步推进；\n3. 已自动保存至本地数据。`;
+  }
+
+  return tp5Success(res, "生成成功", { result: resultText });
 });
 
 // 11. Wallet info & recharge

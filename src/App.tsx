@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Role, Conversation, ChatMessage, UserProfile, AppPage } from './types';
 import { api } from './services/api';
 import { PhoneFrame } from './components/PhoneFrame';
@@ -11,6 +11,7 @@ import { Toast } from './components/Toast';
 import { RoleAvatar } from './components/RoleAvatar';
 import { HelpFeedbackView } from './components/HelpFeedbackView';
 import { SettingsView } from './components/SettingsView';
+import { AIToolkitView } from './components/AIToolkitView';
 import { CategoryChips } from './components/CategoryChips';
 import { loadAllIntimacies, saveIntimacy, getIntimacyData, addDailyChatIntimacy, AddChatIntimacyResult } from './utils/intimacy';
 import { ROLE_MEDIA_MAP } from './data/rolePortraits';
@@ -19,6 +20,7 @@ import {
   Home,
   MessageSquare,
   User,
+  Zap,
   Search,
   ChevronRight,
   Heart,
@@ -35,20 +37,23 @@ import {
   Trash2,
   Server,
   X,
+  CheckCheck,
 } from 'lucide-react';
 
 const CATEGORIES = ['全部', '霸总', '温柔', '邻家', '病娇', '御姐', '学长', '治愈', '高冷', '阳光'];
 
 export default function App() {
   // Page Navigation State
-  const [currentPage, setCurrentPage] = useState<AppPage>('home');
+  const [currentUser, setCurrentUser] = useState<string | null>(() => {
+    return localStorage.getItem('currentUser') || null;
+  });
+  const [currentPage, setCurrentPage] = useState<AppPage>(() => {
+    return localStorage.getItem('currentUser') ? 'home' : 'login';
+  });
   const [activeRole, setActiveRole] = useState<Role | null>(null);
   const [detailRole, setDetailRole] = useState<Role | null>(null);
 
   // Authentication State
-  const [currentUser, setCurrentUser] = useState<string | null>(() => {
-    return localStorage.getItem('currentUser') || '网巢用户';
-  });
   const [loginMode, setLoginMode] = useState<'login' | 'register'>('login');
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -214,7 +219,10 @@ export default function App() {
 
   // Auth Handler
   const handleAuth = async () => {
-    if (!usernameInput.trim() || !passwordInput.trim()) {
+    const user = usernameInput.trim();
+    const pwd = passwordInput.trim();
+
+    if (!user || !pwd) {
       setLoginTip('请输入用户名和密码');
       return;
     }
@@ -224,44 +232,39 @@ export default function App() {
         setLoginTip('两次输入的密码不一致');
         return;
       }
-      const res = await api.register(usernameInput.trim(), passwordInput.trim());
-      if (res) {
-        showToast('注册成功！');
+      const res = await api.register(user, pwd);
+      if (res.success) {
+        showToast('注册成功！请使用新账号登录');
         setLoginMode('login');
         setLoginTip('');
+        setConfirmPwdInput('');
       } else {
-        // Local simulation fallback
-        const users = JSON.parse(localStorage.getItem('users') || '{}');
-        if (users[usernameInput]) {
-          setLoginTip('用户名已存在');
-          return;
-        }
-        users[usernameInput] = { password: passwordInput };
-        localStorage.setItem('users', JSON.stringify(users));
-        showToast('注册成功！欢迎加入网巢');
-        setLoginMode('login');
-        setLoginTip('');
+        setLoginTip(res.msg || '注册失败，该用户名已被使用');
       }
       return;
     }
 
     // Login
-    const res = await api.login(usernameInput.trim(), passwordInput.trim());
-    if (res) {
-      setCurrentUser(res.nickname || usernameInput.trim());
-      localStorage.setItem('currentUser', res.nickname || usernameInput.trim());
-      showToast('登录成功，欢迎回来！');
+    const res = await api.login(user, pwd);
+    if (res.success) {
+      const userNick = res.user?.nickname || res.user?.username || user;
+      setCurrentUser(userNick);
+      localStorage.setItem('currentUser', userNick);
+      if (res.user) {
+        setUserProfile((prev) => ({
+          ...prev,
+          username: res.user.username || prev.username,
+          nickname: userNick,
+          avatar: res.user.avatar || prev.avatar,
+        }));
+      }
+      showToast(`登录成功，欢迎回来 ${userNick}！`);
       setCurrentPage('home');
       setUsernameInput('');
       setPasswordInput('');
+      setLoginTip('');
     } else {
-      // Local fallback for smooth testing
-      setCurrentUser(usernameInput.trim());
-      localStorage.setItem('currentUser', usernameInput.trim());
-      showToast('登录成功！');
-      setCurrentPage('home');
-      setUsernameInput('');
-      setPasswordInput('');
+      setLoginTip(res.msg || '用户名或密码错误，请核对后再试');
     }
   };
 
@@ -445,6 +448,27 @@ export default function App() {
     });
   };
 
+  // Mark specific conversation as read
+  const markConversationAsRead = (roleId: string) => {
+    setConversations((prev) => {
+      const updated = prev.map((c) => (c.roleId === roleId ? { ...c, unread: 0 } : c));
+      localStorage.setItem('conversations', JSON.stringify(updated));
+      return updated;
+    });
+    api.markAsRead(roleId);
+  };
+
+  // Mark all conversations as read
+  const markAllConversationsAsRead = () => {
+    setConversations((prev) => {
+      const updated = prev.map((c) => ({ ...c, unread: 0 }));
+      localStorage.setItem('conversations', JSON.stringify(updated));
+      return updated;
+    });
+    api.markAllAsRead();
+    showToast('已全部标为已读 ✨');
+  };
+
   // Start chat with a role
   const startChatWithRole = (role: Role) => {
     const roleWithVirtualMedia: Role = {
@@ -455,6 +479,7 @@ export default function App() {
     setActiveRole(roleWithVirtualMedia);
     setDetailRole(null);
     setCurrentPage('chat');
+    markConversationAsRead(role.id);
   };
 
   // Filtered Roles for Home
@@ -484,6 +509,11 @@ export default function App() {
       r.tags.some((t) => t.includes(exploreKeyword));
     return matchCategory && matchSearch;
   });
+
+  const totalUnread = useMemo(
+    () => conversations.reduce((acc, curr) => acc + (curr.unread || 0), 0),
+    [conversations]
+  );
 
   return (
     <PhoneFrame onOpenDevCenter={() => setShowDevModal(true)}>
@@ -548,16 +578,23 @@ export default function App() {
               {loginMode === 'login' ? '登 录' : '注 册 账 号'}
             </button>
 
-            <div className="text-center pt-2">
+            <div className="text-center pt-2 space-y-2">
               <button
                 onClick={() => {
                   setLoginMode(loginMode === 'login' ? 'register' : 'login');
                   setLoginTip('');
                 }}
-                className="text-xs text-purple-300 hover:text-purple-200 transition"
+                className="text-xs text-purple-300 hover:text-purple-200 underline underline-offset-4 transition"
               >
-                {loginMode === 'login' ? '还没有账号？立即免费注册' : '已有网巢账号？直接登录'}
+                {loginMode === 'login' ? '还没有账号？点击此处免费注册' : '已有网巢账号？点击直接登录'}
               </button>
+              {loginMode === 'login' && (
+                <div>
+                  <div className="text-[11px] text-white/40 bg-white/5 py-1 px-3 rounded-full inline-block">
+                    💡 默认测试账号: <span className="text-purple-300 font-mono">admin</span> / 密码: <span className="text-purple-300 font-mono">123</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -839,9 +876,20 @@ export default function App() {
       {/* 4. MESSAGES / CONVERSATIONS PAGE */}
       {currentPage === 'messages' && (
         <div id="page-messages" className="h-full flex flex-col bg-[#0a0a0f] overflow-hidden">
-          <div className="px-5 pt-3 pb-2 shrink-0">
-            <h1 className="text-2xl font-black text-white tracking-wide">消息</h1>
-            <p className="text-xs text-white/40 mt-0.5">随时与关注的心动角色畅聊</p>
+          <div className="px-5 pt-3 pb-2 shrink-0 flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-black text-white tracking-wide">消息</h1>
+              <p className="text-xs text-white/40 mt-0.5">随时与关注的心动角色畅聊</p>
+            </div>
+            {totalUnread > 0 && (
+              <button
+                onClick={markAllConversationsAsRead}
+                className="flex items-center gap-1 text-[11px] text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 px-2.5 py-1 rounded-full border border-purple-500/30 transition active:scale-95"
+              >
+                <CheckCheck size={13} />
+                <span>全部已读 ({totalUnread})</span>
+              </button>
+            )}
           </div>
 
           <div className="flex-1 overflow-y-auto divide-y divide-white/5 pb-24">
@@ -895,9 +943,16 @@ export default function App() {
                       <div className="flex items-center justify-between">
                         <p className="text-xs text-white/55 truncate pr-2">{conv.lastMsg}</p>
                         {conv.unread > 0 && (
-                          <span className="px-1.5 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markConversationAsRead(conv.roleId);
+                            }}
+                            className="px-1.5 py-0.5 rounded-full bg-red-500 hover:bg-red-600 active:scale-90 transition text-white text-[10px] font-bold shadow-sm"
+                            title="点击标记为已读"
+                          >
                             {conv.unread}
-                          </span>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -907,6 +962,14 @@ export default function App() {
             )}
           </div>
         </div>
+      )}
+
+      {/* 4. AI TOOLKIT PAGE */}
+      {currentPage === 'toolkit' && (
+        <AIToolkitView
+          onShowToast={showToast}
+          onBackToHome={() => setCurrentPage('home')}
+        />
       )}
 
       {/* 5. PROFILE PAGE */}
@@ -991,6 +1054,23 @@ export default function App() {
 
           {/* Menu Section 2 */}
           <div className="mx-4 bg-white/[0.04] border border-white/10 rounded-2xl divide-y divide-white/5 overflow-hidden">
+            <div
+              onClick={() => setCurrentPage('toolkit')}
+              className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition bg-gradient-to-r from-purple-900/20 to-pink-900/20"
+            >
+              <div className="flex items-center gap-3">
+                <Zap size={17} className="text-pink-400 animate-pulse" />
+                <div>
+                  <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                    AI 智囊工坊
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300">全新 10 大功能</span>
+                  </span>
+                  <div className="text-[10px] text-white/40">PPT、数据分析、闹钟、有声故事、决策跟进</div>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-pink-300" />
+            </div>
+
             <div
               onClick={() => setCurrentPage('creator')}
               className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition"
@@ -1347,6 +1427,21 @@ export default function App() {
           >
             <MessageSquare size={20} />
             <span className="text-[10px] mt-1 font-medium">消息</span>
+          </button>
+
+          <button
+            id="tab-toolkit"
+            onClick={() => setCurrentPage('toolkit')}
+            className={`flex flex-col items-center justify-center transition relative ${
+              currentPage === 'toolkit' ? 'text-purple-400 scale-105' : 'text-white/40 hover:text-white/70'
+            }`}
+          >
+            <Zap size={20} />
+            <span className="text-[10px] mt-1 font-medium">工坊</span>
+            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+            </span>
           </button>
 
           <button

@@ -90,6 +90,7 @@ export type AppPage =
   | 'home'
   | 'explore'
   | 'messages'
+  | 'toolkit'
   | 'profile'
   | 'chat'
   | 'follows'
