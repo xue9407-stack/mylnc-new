@@ -12,7 +12,6 @@ import { RoleAvatar } from './components/RoleAvatar';
 import { HelpFeedbackView } from './components/HelpFeedbackView';
 import { SettingsView } from './components/SettingsView';
 import { CategoryChips } from './components/CategoryChips';
-import { MomentsView } from './components/MomentsView';
 import { loadAllIntimacies, saveIntimacy, getIntimacyData, addDailyChatIntimacy, AddChatIntimacyResult } from './utils/intimacy';
 import { ROLE_MEDIA_MAP } from './data/rolePortraits';
 import { DEFAULT_ROLES } from './data/rolesData';
@@ -1019,19 +1018,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 4. MOMENTS / DYNAMIC FEED PAGE */}
-      {currentPage === 'moments' && (
-        <MomentsView
-          roles={roles}
-          follows={follows}
-          onToggleFollow={handleToggleFollow}
-          onStartChat={startChatWithRole}
-          onShowToast={showToast}
-          onUpdateIntimacy={(roleId, added) => handleUpdateIntimacy(roleId, added)}
-          onCreateRoleClick={() => setShowCreateModal(true)}
-        />
-      )}
-
       {/* 5. PROFILE PAGE */}
       {currentPage === 'profile' && (
         <div id="page-profile" className="h-full overflow-y-auto pb-28 bg-[#0a0a0f] space-y-3.5">
@@ -1114,22 +1100,6 @@ export default function App() {
 
           {/* Menu Section 2 */}
           <div className="mx-4 bg-white/[0.04] border border-white/10 rounded-2xl divide-y divide-white/5 overflow-hidden">
-            <div
-              onClick={() => setShowDevModal(true)}
-              className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition bg-purple-950/20"
-            >
-              <div className="flex items-center gap-3">
-                <Server size={17} className="text-purple-400" />
-                <div>
-                  <span className="text-xs font-semibold text-purple-200">
-                    ThinkPHP 5 与 MySQL 5.6 源码
-                  </span>
-                  <div className="text-[10px] text-white/40">查看SQL建表与控制器代码</div>
-                </div>
-              </div>
-              <ChevronRight size={14} className="text-purple-300" />
-            </div>
-
             <div
               onClick={() => setCurrentPage('settings')}
               className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition"
@@ -1457,27 +1427,6 @@ export default function App() {
             {totalUnread > 0 && (
               <span className="absolute -top-1 right-2 px-1 rounded-full bg-pink-500 text-white text-[9px] font-bold">
                 {totalUnread}
-              </span>
-            )}
-          </button>
-
-          <button
-            id="tab-moments"
-            onClick={() => {
-              setCurrentPage('moments');
-              setHasUnreadMoments(false);
-              localStorage.setItem('hasUnreadMoments', 'false');
-            }}
-            className={`flex flex-col items-center justify-center transition relative ${
-              currentPage === 'moments' ? 'text-purple-400 scale-105' : 'text-white/40 hover:text-white/70'
-            }`}
-          >
-            <Sparkles size={20} />
-            <span className="text-[10px] mt-1 font-medium">动态</span>
-            {hasUnreadMoments && currentPage !== 'moments' && (
-              <span className="absolute -top-1 -right-0.5 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
               </span>
             )}
           </button>
