@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, Check, Play, ChevronRight, Sparkles, Volume2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, Check, Play, Sparkles, Volume2 } from 'lucide-react';
 import { Role } from '../types';
 
 interface HomeRecommendViewProps {
@@ -25,6 +25,10 @@ export const HomeRecommendView: React.FC<HomeRecommendViewProps> = ({
   const [isPlayingVoice, setIsPlayingVoice] = useState(false);
   const [isExpandedDesc, setIsExpandedDesc] = useState(false);
 
+  const touchStartY = useRef<number | null>(null);
+  const touchEndY = useRef<number | null>(null);
+  const lastScrollTime = useRef<number>(0);
+
   useEffect(() => {
     return () => {
       if ('speechSynthesis' in window) {
@@ -36,7 +40,6 @@ export const HomeRecommendView: React.FC<HomeRecommendViewProps> = ({
   if (!roles || roles.length === 0) return null;
 
   const currentRole = roles[currentIndex % roles.length];
-  const nextRole = roles[(currentIndex + 1) % roles.length];
   const isFollowed = follows.includes(currentRole.id);
 
   const handleNextRole = () => {
@@ -55,6 +58,45 @@ export const HomeRecommendView: React.FC<HomeRecommendViewProps> = ({
     setIsPlayingVoice(false);
     setIsExpandedDesc(false);
     setCurrentIndex((prev) => (prev - 1 + roles.length) % roles.length);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchEndY.current = null;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = () => {
+    if (touchStartY.current === null || touchEndY.current === null) return;
+    const diffY = touchStartY.current - touchEndY.current;
+    const minSwipeDistance = 40;
+
+    if (diffY > minSwipeDistance) {
+      // Swiped UP -> Next role
+      handleNextRole();
+    } else if (diffY < -minSwipeDistance) {
+      // Swiped DOWN -> Previous role
+      handlePrevRole();
+    }
+
+    touchStartY.current = null;
+    touchEndY.current = null;
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    const now = Date.now();
+    if (now - lastScrollTime.current < 400) return;
+    if (Math.abs(e.deltaY) > 20) {
+      lastScrollTime.current = now;
+      if (e.deltaY > 0) {
+        handleNextRole();
+      } else {
+        handlePrevRole();
+      }
+    }
   };
 
   const playToneEffect = () => {
@@ -142,7 +184,14 @@ export const HomeRecommendView: React.FC<HomeRecommendViewProps> = ({
   const avatarImg = currentRole.avatarUrl || currentRole.portraitUrl;
 
   return (
-    <div id="page-recommend-home" className="relative h-full w-full overflow-hidden bg-[#07060b] select-none">
+    <div
+      id="page-recommend-home"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
+      className="relative h-full w-full overflow-hidden bg-[#07060b] select-none touch-pan-y"
+    >
       {/* 1. FULLSCREEN IMMERSIVE PORTRAIT BACKGROUND */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <img
@@ -160,23 +209,30 @@ export const HomeRecommendView: React.FC<HomeRecommendViewProps> = ({
       <div className="relative z-20 pt-4 px-4 flex items-center justify-between">
         {/* Role Quick Profile Chip */}
         <div className="flex items-center gap-2.5 bg-black/50 backdrop-blur-md border border-white/15 rounded-full py-1.5 pl-1.5 pr-3 shadow-lg">
-          <img
-            src={avatarImg}
-            alt={currentRole.name}
-            referrerPolicy="no-referrer"
-            className="w-8 h-8 rounded-full object-cover border border-purple-400/50"
-          />
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-white leading-tight flex items-center gap-1">
-              {currentRole.name}
-            </span>
-            <span className="text-[9px] text-white/60">
-              已经有 {currentRole.users || '151'} 人收藏
-            </span>
+          <div
+            onClick={() => onOpenDetail(currentRole)}
+            className="flex items-center gap-2.5 cursor-pointer hover:opacity-90 active:scale-95 transition"
+            title={`查看 ${currentRole.name} 角色主页`}
+          >
+            <img
+              src={avatarImg}
+              alt={currentRole.name}
+              referrerPolicy="no-referrer"
+              className="w-8 h-8 rounded-full object-cover border border-purple-400/50"
+            />
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-white leading-tight flex items-center gap-1">
+                {currentRole.name}
+              </span>
+              <span className="text-[9px] text-white/60">
+                已经有 {currentRole.users || '151'} 人收藏
+              </span>
+            </div>
           </div>
 
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               onToggleFollow(currentRole.id);
               onShowToast(isFollowed ? `已取消关注 ${currentRole.name}` : `已关注 ${currentRole.name}，关系升级！`);
             }}
@@ -269,35 +325,15 @@ export const HomeRecommendView: React.FC<HomeRecommendViewProps> = ({
           </p>
         </div>
 
-        {/* 6. BOTTOM ACTION DOCK (ENTER CHAT + NEXT ROLE SNIPPET) */}
-        <div className="flex items-center gap-3 pt-1">
-          {/* Main Primary Button: Enter Chat */}
+        {/* 6. BOTTOM ACTION DOCK (ENTER CHAT FULL WIDTH) */}
+        <div className="pt-1">
           <button
             onClick={() => onStartChat(currentRole)}
-            className="flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-purple-600/90 via-pink-600/90 to-purple-700/90 hover:from-purple-500 hover:to-pink-500 text-white font-extrabold text-sm shadow-xl shadow-purple-900/50 border border-purple-400/40 backdrop-blur-lg flex items-center justify-center gap-2 active:scale-95 transition"
+            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-purple-600/90 via-pink-600/90 to-purple-700/90 hover:from-purple-500 hover:to-pink-500 text-white font-extrabold text-sm shadow-xl shadow-purple-900/50 border border-purple-400/40 backdrop-blur-lg flex items-center justify-center gap-2 active:scale-95 transition"
           >
             <Sparkles size={18} className="text-pink-300" />
             <span>进入聊天</span>
           </button>
-
-          {/* Next Role Snippet Card */}
-          <div
-            onClick={handleNextRole}
-            className="bg-black/50 backdrop-blur-xl border border-white/15 hover:border-purple-400/50 rounded-2xl p-2 pr-3 flex items-center gap-2 cursor-pointer transition active:scale-95 shrink-0 max-w-[150px]"
-            title="下一个推荐角色"
-          >
-            <img
-              src={nextRole.avatarUrl || nextRole.portraitUrl}
-              alt={nextRole.name}
-              referrerPolicy="no-referrer"
-              className="w-10 h-10 rounded-full object-cover border border-purple-400/40 shrink-0"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-white truncate">{nextRole.name}</div>
-              <div className="text-[9px] text-white/50 truncate mt-0.5">{nextRole.title}</div>
-            </div>
-            <ChevronRight size={16} className="text-white/40 shrink-0" />
-          </div>
         </div>
       </div>
     </div>

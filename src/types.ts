@@ -55,6 +55,7 @@ export interface UserProfile {
   score: number;
   vip_level: number;
   vip_text: string;
+  vip_status?: number;
 }
 
 export interface UserStats {

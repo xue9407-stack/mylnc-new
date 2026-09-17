@@ -84,12 +84,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   };
 
   const handleToolClick = (tool: RoleToolInfo) => {
-    if (!isUnlocked) {
+    if (!isUnlocked && !tool.isFree) {
       setSelectedTool(tool);
       setShowUnlockConfirm(true);
       return;
     }
-    // Is unlocked
+    // Is unlocked or free
     const prompt = tool.promptTemplate(role.name);
     onStartChat(role, prompt);
   };
@@ -280,40 +280,49 @@ export const DetailModal: React.FC<DetailModalProps> = ({
 
           {/* 10 Tools Grid */}
           <div className="mt-3.5 grid grid-cols-2 gap-2">
-            {ROLE_AI_TOOLS.map((tool) => (
-              <button
-                key={tool.id}
-                onClick={() => handleToolClick(tool)}
-                className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 relative group overflow-hidden active:scale-95 ${
-                  isUnlocked
-                    ? 'bg-white/[0.04] hover:bg-white/10 border-white/10 text-white hover:border-purple-500/40'
-                    : 'bg-white/[0.02] border-white/5 text-white/60 hover:bg-white/5'
-                }`}
-              >
-                <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${
-                  isUnlocked ? 'bg-purple-500/20 text-purple-300' : 'bg-white/5 text-white/40'
-                }`}>
-                  {tool.id === 'ppt' && <Presentation size={14} />}
-                  {tool.id === 'analysis' && <BarChart3 size={14} />}
-                  {tool.id === 'alarm' && <AlarmClock size={14} />}
-                  {tool.id === 'image' && <ImageIconLucide size={14} />}
-                  {tool.id === 'copywrite' && <BookOpen size={14} />}
-                  {tool.id === 'story' && <Headphones size={14} />}
-                  {tool.id === 'decision' && <Scale size={14} />}
-                  {tool.id === 'milestone' && <Award size={14} />}
-                  {tool.id === 'study' && <GraduationCap size={14} />}
-                  {tool.id === 'stream' && <History size={14} />}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold text-white flex items-center justify-between">
-                    <span className="truncate">{tool.shortName}</span>
-                    {!isUnlocked && <Lock size={10} className="text-pink-400 shrink-0 ml-1" />}
+            {ROLE_AI_TOOLS.map((tool) => {
+              const isAccessible = isUnlocked || tool.isFree;
+              return (
+                <button
+                  key={tool.id}
+                  onClick={() => handleToolClick(tool)}
+                  className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 relative group overflow-hidden active:scale-95 ${
+                    isAccessible
+                      ? 'bg-white/[0.04] hover:bg-white/10 border-white/10 text-white hover:border-purple-500/40'
+                      : 'bg-white/[0.02] border-white/5 text-white/60 hover:bg-white/5'
+                  }`}
+                >
+                  <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${
+                    isAccessible ? 'bg-purple-500/20 text-purple-300' : 'bg-white/5 text-white/40'
+                  }`}>
+                    {tool.id === 'ppt' && <Presentation size={14} />}
+                    {tool.id === 'analysis' && <BarChart3 size={14} />}
+                    {tool.id === 'alarm' && <AlarmClock size={14} />}
+                    {tool.id === 'image' && <ImageIconLucide size={14} />}
+                    {tool.id === 'copywrite' && <BookOpen size={14} />}
+                    {tool.id === 'story' && <Headphones size={14} />}
+                    {tool.id === 'decision' && <Scale size={14} />}
+                    {tool.id === 'milestone' && <Award size={14} />}
+                    {tool.id === 'study' && <GraduationCap size={14} />}
+                    {tool.id === 'stream' && <History size={14} />}
                   </div>
-                  <div className="text-[10px] text-white/40 truncate mt-0.5">{tool.desc}</div>
-                </div>
-              </button>
-            ))}
+
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-bold text-white flex items-center justify-between">
+                      <span className="truncate">{tool.shortName}</span>
+                      {tool.isFree ? (
+                        <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 shrink-0 ml-1">
+                          免费
+                        </span>
+                      ) : !isUnlocked ? (
+                        <Lock size={10} className="text-pink-400 shrink-0 ml-1" />
+                      ) : null}
+                    </div>
+                    <div className="text-[10px] text-white/40 truncate mt-0.5">{tool.desc}</div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 

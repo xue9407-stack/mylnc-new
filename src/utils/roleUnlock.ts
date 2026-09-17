@@ -10,6 +10,7 @@ export interface RoleToolInfo {
   iconName: string;
   color: string;
   badge: string;
+  isFree?: boolean;
   promptTemplate: (roleName: string) => string;
 }
 
@@ -41,18 +42,19 @@ export const ROLE_AI_TOOLS: RoleToolInfo[] = [
     desc: '出差备忘、晨起任务、天气预报与温馨提醒',
     iconName: 'AlarmClock',
     color: 'from-emerald-500 to-teal-600',
-    badge: '实用',
+    badge: '免费',
+    isFree: true,
     promptTemplate: (name) => `【${name} 专属行程闹钟】我明天要去北京出差 3 天，请为我制定一份出差必备物品清单（含身份证、充电宝等），并预告当地天气，同时设定一个明早 6:30 的霸气/温柔提醒闹钟。`,
   },
   {
     id: 'image',
-    title: '图片·写真制作',
-    shortName: '图片写真',
-    desc: '生成角色专属 AI 绘图 Prompt 与艺术海报',
+    title: '图片·AI制作',
+    shortName: '图片制作',
+    desc: '生成角色专属 AI 绘图 Prompt 与精美海报',
     iconName: 'ImageIcon',
     color: 'from-pink-500 to-rose-600',
     badge: '创意',
-    promptTemplate: (name) => `【${name} 专属图片制作】我想为你做一张精美的角色写真海报。请告诉我你最想尝试的视觉风格（如：星空夜景/赛博朋克/暖阳咖啡馆），并生成一段极具艺术感的高清绘画提示词。`,
+    promptTemplate: (name) => `【${name} 专属图片制作】我想为你制作一张精美的角色海报。请告诉我你最想尝试的视觉风格（如：星空夜景/赛博朋克/暖阳咖啡馆），并生成一段极具艺术感的高清绘画提示词。`,
   },
   {
     id: 'copywrite',
@@ -61,7 +63,8 @@ export const ROLE_AI_TOOLS: RoleToolInfo[] = [
     desc: '精修零散草稿，构建零损失永久记忆库',
     iconName: 'BookOpen',
     color: 'from-amber-500 to-orange-600',
-    badge: '永久',
+    badge: '免费',
+    isFree: true,
     promptTemplate: (name) => `【${name} 专属永久记忆】请把我这句话整理成一段优雅高质感的文字，并永久存入你对我的记忆库中：“我打算在今年年底完成产品上线，并去大理看一次洱海。”`,
   },
   {
@@ -81,7 +84,8 @@ export const ROLE_AI_TOOLS: RoleToolInfo[] = [
     desc: '多选项 SWOT 对比，理智建议与情感陪伴',
     iconName: 'Scale',
     color: 'from-fuchsia-500 to-pink-600',
-    badge: '理性',
+    badge: '免费',
+    isFree: true,
     promptTemplate: (name) => `【${name} 决策利弊分析】我现在面临一个难题：选项 A 留在现有大厂稳定但涨薪慢，选项 B 跳槽初创公司薪资高 30% 但压力大。请帮你以你的经历为我分析两者的利与弊。`,
   },
   {
@@ -91,7 +95,8 @@ export const ROLE_AI_TOOLS: RoleToolInfo[] = [
     desc: '记录项目节点与目标突破，制造满满仪式感',
     iconName: 'Award',
     color: 'from-amber-400 to-yellow-600',
-    badge: '仪式感',
+    badge: '免费',
+    isFree: true,
     promptTemplate: (name) => `【${name} 专属仪式感】告诉你一个好消息，我今天终于完成了我的季度目标，升职成功了！请陪我一起庆祝这个重要的里程碑纪念日吧！`,
   },
   {

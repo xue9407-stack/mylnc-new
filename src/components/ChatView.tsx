@@ -94,7 +94,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   }, [role.id]);
 
   const handleUseTool = (tool: RoleToolInfo) => {
-    if (!isUnlocked) {
+    if (!isUnlocked && !tool.isFree) {
       setSelectedTool(tool);
       setShowUnlockModal(true);
       return;
@@ -463,7 +463,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       setActiveMenuMsg({ msg, x: rect.left, y: rect.top });
                     }}
                     className="opacity-0 group-hover:opacity-100 hover:text-white transition p-0.5 rounded"
-                    title="操作菜单 (长按气泡)"
+                    title="操作菜单"
                   >
                     <MoreVertical size={11} />
                   </button>
@@ -547,38 +547,6 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
-      {/* Role AI Toolkit Quick Strip */}
-      <div className="px-3 py-1.5 bg-[#0c0c14]/95 border-t border-white/5 flex items-center justify-between shrink-0 gap-2">
-        <button
-          onClick={() => setShowToolkitSheet(true)}
-          className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-purple-900/40 via-pink-900/30 to-purple-900/40 border border-purple-500/30 text-purple-200 text-[11px] font-bold flex items-center gap-1.5 hover:border-purple-400 transition active:scale-95 shadow-sm shrink-0"
-        >
-          <Zap size={13} className="text-pink-400" />
-          <span>【{role.name}】智囊</span>
-          {isUnlocked ? (
-            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold">已解锁</span>
-          ) : (
-            <span className="text-[9px] px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 font-bold flex items-center gap-0.5">
-              <Lock size={9} /> 充值解锁
-            </span>
-          )}
-        </button>
-
-        {/* Quick Chip Shortcuts */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1">
-          {ROLE_AI_TOOLS.slice(0, 5).map((tool) => (
-            <button
-              key={tool.id}
-              onClick={() => handleUseTool(tool)}
-              className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white/80 whitespace-nowrap shrink-0 flex items-center gap-1 transition active:scale-95"
-            >
-              <span>{tool.shortName}</span>
-              {!isUnlocked && <Lock size={8} className="text-pink-400 shrink-0" />}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Bottom Input Area */}
       <div className="p-3 pb-6 bg-[#0c0c14]/95 backdrop-blur-xl border-t border-white/5 flex items-center gap-2 z-20 shrink-0">
         <input
@@ -587,7 +555,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={`对 ${role.name} 说点什么... (长按气泡可操作)`}
+          placeholder={`对 ${role.name} 说点什么...`}
           className="flex-1 bg-white/8 hover:bg-white/10 focus:bg-white/12 border border-white/10 focus:border-purple-500/60 rounded-full px-4 py-2.5 text-sm text-white placeholder-white/35 outline-none transition"
         />
 
@@ -807,57 +775,65 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
             {/* Tools List */}
             <div className="flex-1 overflow-y-auto py-3 space-y-2 no-scrollbar">
-              {ROLE_AI_TOOLS.map((tool) => (
-                <button
-                  key={tool.id}
-                  onClick={() => handleUseTool(tool)}
-                  className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between gap-3 active:scale-[0.99] ${
-                    isUnlocked
-                      ? 'bg-white/[0.04] hover:bg-white/10 border-white/10 text-white'
-                      : 'bg-white/[0.02] hover:bg-white/5 border-white/5 text-white/60'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                      isUnlocked ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/40'
-                    }`}>
-                      {tool.id === 'ppt' && <Presentation size={18} />}
-                      {tool.id === 'analysis' && <BarChart3 size={18} />}
-                      {tool.id === 'alarm' && <AlarmClock size={18} />}
-                      {tool.id === 'image' && <ImageIconLucide size={18} />}
-                      {tool.id === 'copywrite' && <BookOpen size={18} />}
-                      {tool.id === 'story' && <Headphones size={18} />}
-                      {tool.id === 'decision' && <Scale size={18} />}
-                      {tool.id === 'milestone' && <Award size={18} />}
-                      {tool.id === 'study' && <GraduationCap size={18} />}
-                      {tool.id === 'stream' && <History size={18} />}
+              {ROLE_AI_TOOLS.map((tool) => {
+                const isAccessible = isUnlocked || tool.isFree;
+                return (
+                  <button
+                    key={tool.id}
+                    onClick={() => handleUseTool(tool)}
+                    className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between gap-3 active:scale-[0.99] ${
+                      isAccessible
+                        ? 'bg-white/[0.04] hover:bg-white/10 border-white/10 text-white'
+                        : 'bg-white/[0.02] hover:bg-white/5 border-white/5 text-white/60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        isAccessible ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/40'
+                      }`}>
+                        {tool.id === 'ppt' && <Presentation size={18} />}
+                        {tool.id === 'analysis' && <BarChart3 size={18} />}
+                        {tool.id === 'alarm' && <AlarmClock size={18} />}
+                        {tool.id === 'image' && <ImageIconLucide size={18} />}
+                        {tool.id === 'copywrite' && <BookOpen size={18} />}
+                        {tool.id === 'story' && <Headphones size={18} />}
+                        {tool.id === 'decision' && <Scale size={18} />}
+                        {tool.id === 'milestone' && <Award size={18} />}
+                        {tool.id === 'study' && <GraduationCap size={18} />}
+                        {tool.id === 'stream' && <History size={18} />}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span>{tool.title}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-purple-200/80 font-normal">
+                            {tool.shortName}
+                          </span>
+                          {tool.isFree && (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                              免费
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-white/45 truncate mt-0.5">{tool.desc}</div>
+                      </div>
                     </div>
 
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <span>{tool.title}</span>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-purple-200/80 font-normal">
-                          {tool.shortName}
+                    <div className="shrink-0">
+                      {isAccessible ? (
+                        <span className="px-2.5 py-1 rounded-xl bg-purple-500/20 text-purple-200 text-xs font-semibold hover:bg-purple-500/30 border border-purple-500/30">
+                          调用秘籍
                         </span>
-                      </div>
-                      <div className="text-[11px] text-white/45 truncate mt-0.5">{tool.desc}</div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-pink-400 text-xs font-semibold">
+                          <Lock size={12} />
+                          <span>未解锁</span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-
-                  <div className="shrink-0">
-                    {isUnlocked ? (
-                      <span className="px-2.5 py-1 rounded-xl bg-purple-500/20 text-purple-200 text-xs font-semibold hover:bg-purple-500/30 border border-purple-500/30">
-                        调用秘籍
-                      </span>
-                    ) : (
-                      <div className="flex items-center gap-1 text-pink-400 text-xs font-semibold">
-                        <Lock size={12} />
-                        <span>未解锁</span>
-                      </div>
-                    )}
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

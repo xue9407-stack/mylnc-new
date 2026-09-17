@@ -364,41 +364,47 @@ export const api = {
     try {
       const users = JSON.parse(localStorage.getItem('users') || '{}');
       if (username === 'admin' && password === '123') {
+        const savedAdmin = localStorage.getItem('profile_admin');
+        const adminProfile = savedAdmin ? JSON.parse(savedAdmin) : {
+          id: 10086,
+          username: 'admin',
+          nickname: '网巢体验官',
+          avatar: '😊',
+          money: 128.5,
+          score: 328,
+          vip_level: 1,
+          vip_text: '💎 黄金会员',
+          vip_status: 1,
+        };
         return {
           success: true,
-          user: {
-            id: 10086,
-            username: 'admin',
-            nickname: '网巢体验官',
-            avatar: '😊',
-            money: 128.5,
-            score: 328,
-            vip_level: 1,
-            vip_text: '💎 黄金会员',
-          },
+          user: adminProfile,
         };
       }
       const found = users[username];
       if (found && found.password === password) {
+        const savedUser = localStorage.getItem(`profile_${username}`);
+        const userProfile = savedUser ? JSON.parse(savedUser) : {
+          id: found.id || Date.now(),
+          username,
+          nickname: found.nickname || username,
+          avatar: found.avatar || '😊',
+          money: 0.00,
+          score: 0,
+          vip_level: 0,
+          vip_text: '普通用户',
+          vip_status: 0,
+        };
         return {
           success: true,
-          user: {
-            id: found.id || Date.now(),
-            username,
-            nickname: found.nickname || username,
-            avatar: '🌸',
-            money: 66.0,
-            score: 100,
-            vip_level: 0,
-            vip_text: '普通用户',
-          },
+          user: userProfile,
         };
       }
     } catch {
       // ignore
     }
 
-    return { success: false, msg: '账号未注册或密码错误，请先注册！' };
+    return { success: false, msg: '账号未注册或密码错误，请核对后重试！' };
   },
 
   async register(username: string, password: string): Promise<{ success: boolean; msg?: string; user?: any }> {
@@ -428,7 +434,22 @@ export const api = {
       };
       users[username] = newUser;
       localStorage.setItem('users', JSON.stringify(users));
-      return { success: true, user: newUser };
+
+      // Save initial white account profile (0.00 balance, no VIP)
+      const whiteAccountProfile: UserProfile = {
+        id: newUser.id,
+        username,
+        nickname: username,
+        avatar: '😊',
+        money: 0.00,
+        score: 0,
+        vip_level: 0,
+        vip_text: '普通用户',
+        vip_status: 0,
+      };
+      localStorage.setItem(`profile_${username}`, JSON.stringify(whiteAccountProfile));
+
+      return { success: true, user: whiteAccountProfile };
     } catch {
       return { success: false, msg: '注册失败，请重试' };
     }
@@ -438,8 +459,10 @@ export const api = {
     const data = await fetchJson<{ user: UserProfile; stats: UserStats }>('/user/profile');
     if (data) return data;
 
-    return {
-      user: {
+    const curUser = localStorage.getItem('currentUser');
+    if (curUser === 'admin' || curUser === '网巢体验官') {
+      const savedAdmin = localStorage.getItem('profile_admin');
+      const adminUser = savedAdmin ? JSON.parse(savedAdmin) : {
         id: 10086,
         username: 'admin',
         nickname: '网巢体验官',
@@ -448,12 +471,51 @@ export const api = {
         score: 328,
         vip_level: 1,
         vip_text: '💎 黄金会员',
+        vip_status: 1,
+      };
+      return {
+        user: adminUser,
+        stats: {
+          roles_count: 11,
+          chat_days: 7,
+          messages_count: 88,
+          follows_count: 5,
+        },
+      };
+    }
+
+    if (curUser) {
+      const saved = localStorage.getItem(`profile_${curUser}`);
+      if (saved) {
+        return {
+          user: JSON.parse(saved),
+          stats: {
+            roles_count: 0,
+            chat_days: 1,
+            messages_count: 0,
+            follows_count: 0,
+          },
+        };
+      }
+    }
+
+    return {
+      user: {
+        id: Date.now(),
+        username: curUser || 'guest',
+        nickname: curUser || '新用户',
+        avatar: '😊',
+        money: 0.00,
+        score: 0,
+        vip_level: 0,
+        vip_text: '普通用户',
+        vip_status: 0,
       },
       stats: {
-        roles_count: 11,
-        chat_days: 7,
-        messages_count: 88,
-        follows_count: 5,
+        roles_count: 0,
+        chat_days: 1,
+        messages_count: 0,
+        follows_count: 0,
       },
     };
   },

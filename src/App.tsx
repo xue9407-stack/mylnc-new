@@ -12,6 +12,8 @@ import { SettingsView } from './components/SettingsView';
 import { CategoryChips } from './components/CategoryChips';
 import { CreatorView } from './components/CreatorView';
 import { HomeRecommendView } from './components/HomeRecommendView';
+import { VipView } from './components/VipView';
+import { EditProfileModal } from './components/EditProfileModal';
 import { loadAllIntimacies, saveIntimacy, getIntimacyData, addDailyChatIntimacy, AddChatIntimacyResult } from './utils/intimacy';
 import { ROLE_MEDIA_MAP } from './data/rolePortraits';
 import { DEFAULT_ROLES } from './data/rolesData';
@@ -42,6 +44,8 @@ import {
   Radio,
   Globe,
   Compass,
+  Camera,
+  Edit2,
 } from 'lucide-react';
 
 const CATEGORIES = ['全部', '霸总', '温柔', '邻家', '病娇', '御姐', '学长', '治愈', '高冷', '阳光'];
@@ -138,20 +142,62 @@ export default function App() {
       return ['lujingchen', 'linxiaorou'];
     }
   });
-  const [userProfile, setUserProfile] = useState<UserProfile>({
-    id: 10086,
-    username: 'admin',
-    nickname: '网巢体验官',
-    avatar: '😊',
-    money: 128.5,
-    score: 328,
-    vip_level: 1,
-    vip_text: '💎 黄金会员',
+
+  // Filter valid followed roles matching existing roles
+  const followedRoles = useMemo(() => {
+    return roles.filter((role) => follows.includes(role.id));
+  }, [roles, follows]);
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      const stored = localStorage.getItem(`profile_${savedUser}`);
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch {}
+      }
+      if (savedUser === 'admin' || savedUser === '网巢体验官') {
+        return {
+          id: 10086,
+          username: 'admin',
+          nickname: '网巢体验官',
+          avatar: '😊',
+          money: 128.5,
+          score: 328,
+          vip_level: 1,
+          vip_text: '💎 黄金会员',
+          vip_status: 1,
+        };
+      }
+      return {
+        id: Date.now(),
+        username: savedUser,
+        nickname: savedUser,
+        avatar: '😊',
+        money: 0.00,
+        score: 0,
+        vip_level: 0,
+        vip_text: '普通用户',
+        vip_status: 0,
+      };
+    }
+    return {
+      id: 0,
+      username: '',
+      nickname: '未登录',
+      avatar: '😊',
+      money: 0,
+      score: 0,
+      vip_level: 0,
+      vip_text: '普通用户',
+      vip_status: 0,
+    };
   });
 
   // Modals & Tools
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showRechargeModal, setShowRechargeModal] = useState<boolean>(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState<boolean>(false);
 
   // Helper: Toast Message
   const showToast = (msg: string) => {
@@ -194,10 +240,18 @@ export default function App() {
     loadData();
   }, []);
 
-  // Sync follows to LocalStorage
+  // Sync follows to LocalStorage and clean invalid IDs
   useEffect(() => {
+    if (roles.length > 0) {
+      const validFollows = follows.filter((id) => roles.some((r) => r.id === id));
+      if (validFollows.length !== follows.length) {
+        setFollows(validFollows);
+        localStorage.setItem('follows', JSON.stringify(validFollows));
+        return;
+      }
+    }
     localStorage.setItem('follows', JSON.stringify(follows));
-  }, [follows]);
+  }, [follows, roles]);
 
   // Clear unread moments badge when entering moments page
   useEffect(() => {
@@ -281,18 +335,14 @@ export default function App() {
 
     // Login
     const res = await api.login(user, pwd);
-    if (res.success) {
-      const userNick = res.user?.nickname || res.user?.username || user;
+    if (res.success && res.user) {
+      const userNick = res.user.nickname || res.user.username || user;
+      const targetUserKey = res.user.username || user;
       setCurrentUser(userNick);
-      localStorage.setItem('currentUser', userNick);
-      if (res.user) {
-        setUserProfile((prev) => ({
-          ...prev,
-          username: res.user.username || prev.username,
-          nickname: userNick,
-          avatar: res.user.avatar || prev.avatar,
-        }));
-      }
+      localStorage.setItem('currentUser', targetUserKey);
+      setUserProfile(res.user);
+      localStorage.setItem(`profile_${targetUserKey}`, JSON.stringify(res.user));
+
       showToast(`登录成功，欢迎回来 ${userNick}！`);
       setCurrentPage('home');
       setUsernameInput('');
@@ -307,6 +357,17 @@ export default function App() {
     showToast('已安全退出登录');
     localStorage.removeItem('currentUser');
     setCurrentUser(null);
+    setUserProfile({
+      id: 0,
+      username: '',
+      nickname: '未登录',
+      avatar: '😊',
+      money: 0,
+      score: 0,
+      vip_level: 0,
+      vip_text: '普通用户',
+      vip_status: 0,
+    });
     setCurrentPage('login');
   };
 
@@ -1059,12 +1120,26 @@ export default function App() {
       {currentPage === 'profile' && (
         <div id="page-profile" className="h-full overflow-y-auto pb-28 bg-[#0a0a0f] space-y-3.5">
           {/* Top Profile Card */}
-          <div className="pt-6 pb-6 px-5 text-center bg-gradient-to-b from-[#2d1b4e] to-[#0a0a0f] border-b border-white/5">
-            <div className="w-18 h-18 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-3xl mx-auto mb-2.5 border-2 border-white/20 shadow-xl">
-              {userProfile.avatar}
+          <div
+            onClick={() => setShowEditProfileModal(true)}
+            className="pt-6 pb-6 px-5 text-center bg-gradient-to-b from-[#2d1b4e] to-[#0a0a0f] border-b border-white/5 cursor-pointer group hover:bg-white/[0.02] transition relative"
+          >
+            <div className="relative w-20 h-20 mx-auto mb-2.5">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-3xl border-2 border-white/20 shadow-xl overflow-hidden">
+                {userProfile.avatar && (userProfile.avatar.startsWith('http') || userProfile.avatar.startsWith('data:')) ? (
+                  <img src={userProfile.avatar} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  userProfile.avatar || '😊'
+                )}
+              </div>
+              <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-pink-600 text-white flex items-center justify-center shadow-lg border border-black/40 group-hover:scale-110 transition">
+                <Camera size={12} />
+              </div>
             </div>
-            <h2 className="text-lg font-bold text-white">{currentUser || userProfile.nickname}</h2>
-            <div className="text-[11px] text-white/40 mt-0.5 font-mono">ID: {userProfile.id}</div>
+            <h2 className="text-lg font-bold text-white flex items-center justify-center gap-1.5">
+              {userProfile.nickname}
+              <Edit2 size={13} className="text-white/40 group-hover:text-pink-400 transition" />
+            </h2>
             <div className="inline-block mt-2 px-3 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-semibold">
               {userProfile.vip_text}
             </div>
@@ -1098,7 +1173,7 @@ export default function App() {
               </div>
               <div className="flex items-center gap-1.5 text-white/40 text-xs">
                 <span className="px-1.5 py-0.2 rounded-full bg-pink-500/20 text-pink-300 text-[11px]">
-                  {follows.length}
+                  {followedRoles.length}
                 </span>
                 <ChevronRight size={14} />
               </div>
@@ -1185,14 +1260,12 @@ export default function App() {
             <h2 className="text-base font-bold text-white">我的关注</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-2.5 pb-28">
-            {follows.length === 0 ? (
+            {followedRoles.length === 0 ? (
               <div className="text-center py-20 text-white/40 text-xs">
                 还没有关注任何角色，快去首页发现心动角色吧
               </div>
             ) : (
-              follows.map((id) => {
-                const role = roles.find((r) => r.id === id);
-                if (!role) return null;
+              followedRoles.map((role) => {
                 const intimacyData = getIntimacyData(intimacies[role.id] || 0);
                 return (
                   <div
@@ -1237,50 +1310,12 @@ export default function App() {
 
       {/* 7. SUB-PAGE: VIP CENTER */}
       {currentPage === 'vip' && (
-        <div className="h-full overflow-y-auto p-4 pb-28 bg-[#0a0a0f] space-y-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setCurrentPage('profile')}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white/70"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <h2 className="text-base font-bold text-white">会员中心</h2>
-          </div>
-
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 text-black shadow-xl">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider">💎 黄金终身会员</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/20 text-white font-bold">
-                生效中
-              </span>
-            </div>
-            <div className="text-xl font-extrabold mt-3">有效期至 2026-12-31</div>
-            <p className="text-[11px] text-black/80 mt-1">无限畅聊 · 专属拟真人格 · 解锁11位角色 · 纯净体验</p>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-            <h3 className="text-xs font-bold text-white/80 uppercase tracking-wider">尊享权益清单</h3>
-            <div className="space-y-2 text-xs text-white/75 leading-relaxed">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                <span>无限次对话，不限字数与频率</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                <span>解锁全部 11 位官方自研性格角色</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                <span>支持创建自定义角色并入驻广场</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-emerald-400 shrink-0" />
-                <span>优先体验拟真角色情感记忆库</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <VipView
+          userProfile={userProfile}
+          onBack={() => setCurrentPage('profile')}
+          onShowToast={showToast}
+          onRechargeModal={() => setShowRechargeModal(true)}
+        />
       )}
 
       {/* 8. SUB-PAGE: WALLET */}
@@ -1304,32 +1339,15 @@ export default function App() {
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => setShowRechargeModal(true)}
-                className="px-4 py-1.5 rounded-full bg-white text-purple-700 text-xs font-bold hover:bg-white/90 active:scale-95 transition"
+                className="px-5 py-1.5 rounded-full bg-white text-purple-700 text-xs font-bold hover:bg-white/90 active:scale-95 transition"
               >
                 充值
               </button>
-              <button
-                onClick={() => showToast('当前体验环境暂不开放提现')}
-                className="px-4 py-1.5 rounded-full bg-white/20 text-white text-xs font-medium hover:bg-white/30 transition"
-              >
-                提现
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-              <div className="text-lg font-bold text-white font-mono">¥ 56.00</div>
-              <div className="text-[11px] text-white/40 mt-0.5">创作分成待提</div>
-            </div>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-              <div className="text-lg font-bold text-white font-mono">{userProfile.score}</div>
-              <div className="text-[11px] text-white/40 mt-0.5">可用互动积分</div>
             </div>
           </div>
 
           <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <h4 className="text-xs font-bold text-white/70 mb-2">最近交易明细 (MySQL 5.6)</h4>
+            <h4 className="text-xs font-bold text-white/70 mb-2">最近交易明细</h4>
             <div className="space-y-2 text-xs text-white/60">
               <div className="flex justify-between py-1 border-b border-white/5">
                 <span>10-01 会员充值返现</span>
@@ -1499,10 +1517,31 @@ export default function App() {
       <RechargeModal
         isOpen={showRechargeModal}
         onClose={() => setShowRechargeModal(false)}
-        onRechargeSuccess={(amt) => {
+        onRechargeSuccess={(amt, mode, vipTitle) => {
+          if (mode === 'balance') {
+            setUserProfile((prev) => ({
+              ...prev,
+              money: prev.money + amt,
+            }));
+          } else if (vipTitle) {
+            setUserProfile((prev) => ({
+              ...prev,
+              vip_text: vipTitle,
+              vip_status: 1,
+            }));
+          }
+        }}
+        onShowToast={showToast}
+      />
+
+      <EditProfileModal
+        isOpen={showEditProfileModal}
+        userProfile={userProfile}
+        onClose={() => setShowEditProfileModal(false)}
+        onSave={(updated) => {
           setUserProfile((prev) => ({
             ...prev,
-            money: prev.money + amt,
+            ...updated,
           }));
         }}
         onShowToast={showToast}
