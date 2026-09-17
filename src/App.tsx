@@ -11,8 +11,8 @@ import { Toast } from './components/Toast';
 import { RoleAvatar } from './components/RoleAvatar';
 import { HelpFeedbackView } from './components/HelpFeedbackView';
 import { SettingsView } from './components/SettingsView';
-import { AIToolkitView } from './components/AIToolkitView';
 import { CategoryChips } from './components/CategoryChips';
+import { MomentsView } from './components/MomentsView';
 import { loadAllIntimacies, saveIntimacy, getIntimacyData, addDailyChatIntimacy, AddChatIntimacyResult } from './utils/intimacy';
 import { ROLE_MEDIA_MAP } from './data/rolePortraits';
 import { DEFAULT_ROLES } from './data/rolesData';
@@ -38,6 +38,10 @@ import {
   Server,
   X,
   CheckCheck,
+  Plus,
+  Sparkles,
+  Radio,
+  Globe,
 } from 'lucide-react';
 
 const CATEGORIES = ['全部', '霸总', '温柔', '邻家', '病娇', '御姐', '学长', '治愈', '高冷', '阳光'];
@@ -78,6 +82,10 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [homeSearchKeyword, setHomeSearchKeyword] = useState<string>('');
   const [exploreKeyword, setExploreKeyword] = useState<string>('');
+  const [homeTopTab, setHomeTopTab] = useState<'recommend' | 'theater' | 'original' | 'game'>('recommend');
+  const [hasUnreadMoments, setHasUnreadMoments] = useState<boolean>(() => {
+    return localStorage.getItem('hasUnreadMoments') !== 'false';
+  });
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     try {
       const savedConvs = localStorage.getItem('conversations');
@@ -192,6 +200,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('follows', JSON.stringify(follows));
   }, [follows]);
+
+  // Clear unread moments badge when entering moments page
+  useEffect(() => {
+    if (currentPage === 'moments') {
+      setHasUnreadMoments(false);
+      localStorage.setItem('hasUnreadMoments', 'false');
+    }
+  }, [currentPage]);
 
   // Sync conversations to LocalStorage
   useEffect(() => {
@@ -470,7 +486,7 @@ export default function App() {
   };
 
   // Start chat with a role
-  const startChatWithRole = (role: Role) => {
+  const startChatWithRole = (role: Role, initialPrompt?: string) => {
     const roleWithVirtualMedia: Role = {
       ...role,
       avatarUrl: ROLE_MEDIA_MAP[role.id]?.avatarUrl || role.avatarUrl,
@@ -480,6 +496,12 @@ export default function App() {
     setDetailRole(null);
     setCurrentPage('chat');
     markConversationAsRead(role.id);
+
+    if (initialPrompt) {
+      setTimeout(() => {
+        handleSendMessage(initialPrompt);
+      }, 350);
+    }
   };
 
   // Filtered Roles for Home
@@ -620,146 +642,179 @@ export default function App() {
 
       {/* 2. HOME PAGE */}
       {currentPage === 'home' && (
-        <div id="page-home" className="h-full flex flex-col bg-gradient-to-b from-[#180e33] via-[#0b0a13] to-[#0a0a0f] overflow-hidden">
-          {/* Header */}
+        <div id="page-home" className="h-full flex flex-col bg-gradient-to-b from-[#180e33] via-[#0b0a13] to-[#0a0a0f] overflow-hidden relative">
+          {/* Top Search Bar */}
           <div className="px-5 pt-3 pb-2 shrink-0">
-            <div className="text-xs text-purple-300/60 font-medium">✨ 欢迎来到网巢</div>
-            <div className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-purple-100 to-pink-200 tracking-tight">
-              网巢
-            </div>
-          </div>
-
-          {/* Search Bar */}
-          <div className="px-5 mb-2.5 shrink-0">
-            <div className="flex items-center bg-white/8 hover:bg-white/10 focus-within:bg-white/12 border border-white/10 focus-within:border-purple-500/40 rounded-2xl px-3.5 py-2.5 backdrop-blur-md transition shadow-sm">
-              <Search size={15} className="text-white/40 mr-2 shrink-0" />
-              <input
-                type="text"
-                value={homeSearchKeyword}
-                onChange={(e) => setHomeSearchKeyword(e.target.value)}
-                placeholder="搜索角色名字、性格、标签..."
-                className="w-full bg-transparent text-xs text-white placeholder-white/40 outline-none"
-              />
-              {homeSearchKeyword && (
-                <button
-                  onClick={() => setHomeSearchKeyword('')}
-                  className="p-1 rounded-full hover:bg-white/15 text-white/40 hover:text-white transition active:scale-90 shrink-0"
-                  title="清除搜索"
-                  aria-label="清除搜索"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Category Chips with Horizontal Wheel, Dragging & Fade Masks */}
-          <CategoryChips
-            categories={CATEGORIES}
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-            className="mb-2 shrink-0"
-          />
-
-          {/* Section Header */}
-          <div className="px-5 py-1.5 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-white tracking-wide">
-                {selectedCategory === '全部' ? '为你推荐' : `精选 · ${selectedCategory}`}
-              </h2>
-              <span className="text-[10px] text-white/50 bg-white/5 px-2 py-0.5 rounded-full border border-white/5 font-mono">
-                {filteredHomeRoles.length} 位角色
-              </span>
+              <div className="flex-1 flex items-center bg-white/10 hover:bg-white/15 focus-within:bg-white/20 border border-white/10 focus-within:border-purple-500/50 rounded-full px-4 py-2 backdrop-blur-md transition shadow-sm">
+                <Search size={15} className="text-white/40 mr-2 shrink-0" />
+                <input
+                  type="text"
+                  value={homeSearchKeyword}
+                  onChange={(e) => setHomeSearchKeyword(e.target.value)}
+                  placeholder="搜索梦中人..."
+                  className="w-full bg-transparent text-xs text-white placeholder-white/40 outline-none"
+                />
+                {homeSearchKeyword && (
+                  <button
+                    onClick={() => setHomeSearchKeyword('')}
+                    className="p-1 rounded-full hover:bg-white/15 text-white/40 hover:text-white transition active:scale-90 shrink-0"
+                    title="清除搜索"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={() => showToast('✨ 正在为您推荐匹配度最高的梦中人...')}
+                className="w-9 h-9 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-purple-300 hover:text-white transition active:scale-90 shrink-0"
+              >
+                <Sparkles size={16} />
+              </button>
             </div>
-            <button
-              onClick={() => setCurrentPage('explore')}
-              className="text-xs text-purple-300/80 hover:text-purple-200 flex items-center gap-0.5 active:scale-95 transition"
-            >
-              <span>查看全部</span>
-              <ChevronRight size={13} />
-            </button>
           </div>
 
-          {/* Role Cards List */}
-          <div className="flex-1 overflow-y-auto px-5 py-2 space-y-3 pb-24">
-            {filteredHomeRoles.length === 0 ? (
-              <div className="text-center py-16 text-white/40 text-xs space-y-3">
-                <p>没有找到符合“{selectedCategory !== '全部' ? selectedCategory : ''} {homeSearchKeyword}”的角色</p>
+          {/* Scrollable Main Content */}
+          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4 pb-28 no-scrollbar">
+
+            {/* "登岛必聊" Section Header */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
+                  <span>登岛必聊</span>
+                  <span className="text-[10px] text-pink-400 bg-pink-500/15 px-2 py-0.2 rounded-full font-normal">
+                    TOP 3 推荐
+                  </span>
+                </h2>
                 <button
-                  onClick={() => {
-                    setSelectedCategory('全部');
-                    setHomeSearchKeyword('');
-                  }}
-                  className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/15 text-white/80 text-xs transition active:scale-95"
+                  onClick={() => setCurrentPage('explore')}
+                  className="text-xs text-white/50 hover:text-white flex items-center gap-0.5"
                 >
-                  重置筛选与搜索
+                  <span>更多</span>
+                  <ChevronRight size={13} />
                 </button>
               </div>
-            ) : (
-              filteredHomeRoles.map((role) => {
-                const intimacyData = getIntimacyData(intimacies[role.id] || 0);
-                return (
-                  <div
-                    key={role.id}
-                    onClick={() => setDetailRole(role)}
-                    className="flex bg-white/[0.04] hover:bg-white/[0.07] border border-white/5 rounded-2xl overflow-hidden cursor-pointer active:scale-[0.98] transition group shadow-sm"
-                  >
-                    {/* Left Cover Banner with Virtual Avatar / Portrait Image */}
+
+              {/* 3 Rank Cards Grid */}
+              <div className="grid grid-cols-3 gap-2.5">
+                {roles.slice(0, 3).map((role, idx) => {
+                  const rankTitles = ['创作飙升', '潜力新秀', '热度飙升'];
+                  return (
                     <div
-                      className={`w-24 shrink-0 relative overflow-hidden flex items-center justify-center ${role.cover}`}
+                      key={role.id}
+                      onClick={() => setDetailRole(role)}
+                      className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl overflow-hidden text-center cursor-pointer active:scale-95 transition group"
                     >
-                      {(ROLE_MEDIA_MAP[role.id]?.avatarUrl || role.avatarUrl) ? (
+                      <div className="h-28 overflow-hidden relative">
                         <img
-                          src={ROLE_MEDIA_MAP[role.id]?.avatarUrl || role.avatarUrl}
+                          src={ROLE_MEDIA_MAP[role.id]?.avatarUrl || role.avatarUrl || '/avatars/lujingchen.jpg'}
                           alt={role.name}
                           referrerPolicy="no-referrer"
                           className="w-full h-full object-cover object-top group-hover:scale-110 transition duration-300"
                         />
-                      ) : (
-                        <span className="text-4xl select-none">{role.emoji}</span>
-                      )}
-                      <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md bg-black/70 backdrop-blur-xs text-[9px] text-pink-300 font-bold border border-pink-500/30 flex items-center gap-0.5 shadow-sm">
-                        <span>❤️</span>
-                        <span>Lv.{intimacyData.level}</span>
-                      </span>
-                    </div>
-
-                    {/* Body Content */}
-                    <div className="flex-1 p-3.5 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-base font-bold text-white group-hover:text-purple-300 transition">
-                            {role.name}
-                          </h3>
-                          <span className="text-[11px] text-purple-300/80 bg-purple-500/15 px-2 py-0.5 rounded-md font-medium">
-                            {role.title}
-                          </span>
-                        </div>
-                        <p className="text-xs text-white/60 line-clamp-2 mt-1.5 leading-relaxed font-light">
-                          {role.desc}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/5">
-                        <span className="text-[11px] text-white/40">
-                          {role.tags.slice(0, 2).map((t) => `#${t} `)}
+                        <span className="absolute top-1 left-1 px-1.5 py-0.2 rounded-md bg-black/70 backdrop-blur-xs text-[9px] text-pink-300 font-bold border border-pink-500/30">
+                          #{idx + 1}
                         </span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startChatWithRole(role);
-                          }}
-                          className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-[11px] text-white font-medium shadow-sm hover:opacity-90 active:scale-95 transition"
-                        >
-                          聊一聊
-                        </button>
+                      </div>
+                      <div className="p-2">
+                        <div className="text-xs font-extrabold text-white truncate">{rankTitles[idx]}</div>
+                        <div className="text-[10px] text-white/50 truncate mt-0.5">{role.name}</div>
                       </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* "发现更多" Tag Filters Header */}
+            <div className="space-y-2 pt-1">
+              <div className="text-sm font-bold text-white tracking-wide">发现更多</div>
+
+              <CategoryChips
+                categories={['全部', '忠诚', '白切黑', '清冷', '玄', '天生对手', '霸道', '治愈']}
+                selectedCategory={selectedCategory}
+                onSelectCategory={setSelectedCategory}
+              />
+            </div>
+
+            {/* Role List Cards */}
+            <div className="space-y-3 pt-1">
+              {filteredHomeRoles.length === 0 ? (
+                <div className="text-center py-12 text-white/40 text-xs space-y-2">
+                  <p>没有找到符合搜索的角色</p>
+                  <button
+                    onClick={() => {
+                      setSelectedCategory('全部');
+                      setHomeSearchKeyword('');
+                    }}
+                    className="px-3.5 py-1.5 rounded-full bg-white/10 text-white text-xs"
+                  >
+                    重置筛选
+                  </button>
+                </div>
+              ) : (
+                filteredHomeRoles.map((role) => {
+                  const intimacyData = getIntimacyData(intimacies[role.id] || 0);
+                  return (
+                    <div
+                      key={role.id}
+                      onClick={() => setDetailRole(role)}
+                      className="p-3.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-2xl flex items-center gap-3.5 cursor-pointer active:scale-[0.98] transition group relative overflow-hidden"
+                    >
+                      <div className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 border border-white/15 relative">
+                        <img
+                          src={ROLE_MEDIA_MAP[role.id]?.avatarUrl || role.avatarUrl || '/avatars/lujingchen.jpg'}
+                          alt={role.name}
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover object-top group-hover:scale-110 transition duration-300"
+                        />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-bold text-white group-hover:text-purple-300 transition">
+                              {role.name}
+                            </h3>
+                            <span className="px-1.5 py-0.2 rounded-md bg-gradient-to-r from-orange-500 to-amber-500 text-white text-[9px] font-extrabold">
+                              热门
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 mt-1">
+                          {role.tags.slice(0, 2).map((tag, tIdx) => (
+                            <span key={tIdx} className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-200 text-[9px]">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+
+                        <p className="text-xs text-white/60 truncate mt-1.5 font-light">
+                          “{role.desc}”
+                        </p>
+
+                        <div className="flex items-center gap-3 text-[10px] text-white/40 mt-2 font-mono">
+                          <span>入梦 {role.users}</span>
+                          <span>梦境 {role.follows}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
+
+          {/* Floating Plus Button (+) in bottom right */}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="absolute bottom-20 right-5 w-12 h-12 rounded-full bg-gradient-to-tr from-purple-600 via-pink-500 to-purple-500 text-white flex items-center justify-center shadow-2xl shadow-purple-500/50 hover:scale-110 active:scale-90 transition z-20 border border-white/30"
+            title="创建我的角色"
+          >
+            <Plus size={24} />
+          </button>
         </div>
       )}
 
@@ -964,11 +1019,16 @@ export default function App() {
         </div>
       )}
 
-      {/* 4. AI TOOLKIT PAGE */}
-      {currentPage === 'toolkit' && (
-        <AIToolkitView
+      {/* 4. MOMENTS / DYNAMIC FEED PAGE */}
+      {currentPage === 'moments' && (
+        <MomentsView
+          roles={roles}
+          follows={follows}
+          onToggleFollow={handleToggleFollow}
+          onStartChat={startChatWithRole}
           onShowToast={showToast}
-          onBackToHome={() => setCurrentPage('home')}
+          onUpdateIntimacy={(roleId, added) => handleUpdateIntimacy(roleId, added)}
+          onCreateRoleClick={() => setShowCreateModal(true)}
         />
       )}
 
@@ -1054,39 +1114,6 @@ export default function App() {
 
           {/* Menu Section 2 */}
           <div className="mx-4 bg-white/[0.04] border border-white/10 rounded-2xl divide-y divide-white/5 overflow-hidden">
-            <div
-              onClick={() => setCurrentPage('toolkit')}
-              className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition bg-gradient-to-r from-purple-900/20 to-pink-900/20"
-            >
-              <div className="flex items-center gap-3">
-                <Zap size={17} className="text-pink-400 animate-pulse" />
-                <div>
-                  <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                    AI 智囊工坊
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300">全新 10 大功能</span>
-                  </span>
-                  <div className="text-[10px] text-white/40">PPT、数据分析、闹钟、有声故事、决策跟进</div>
-                </div>
-              </div>
-              <ChevronRight size={14} className="text-pink-300" />
-            </div>
-
-            <div
-              onClick={() => setCurrentPage('creator')}
-              className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition"
-            >
-              <div className="flex items-center gap-3">
-                <PenTool size={17} className="text-indigo-400" />
-                <span className="text-xs font-medium text-white">创作中心</span>
-              </div>
-              <div className="flex items-center gap-1 text-white/40 text-xs">
-                <span className="text-[10px] text-indigo-300 bg-indigo-500/20 px-1.5 py-0.5 rounded">
-                  创建新角色
-                </span>
-                <ChevronRight size={14} />
-              </div>
-            </div>
-
             <div
               onClick={() => setShowDevModal(true)}
               className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition bg-purple-950/20"
@@ -1414,7 +1441,7 @@ export default function App() {
               currentPage === 'home' ? 'text-purple-400 scale-105' : 'text-white/40 hover:text-white/70'
             }`}
           >
-            <Home size={20} />
+            <Globe size={20} />
             <span className="text-[10px] mt-1 font-medium">首页</span>
           </button>
 
@@ -1426,22 +1453,33 @@ export default function App() {
             }`}
           >
             <MessageSquare size={20} />
-            <span className="text-[10px] mt-1 font-medium">消息</span>
+            <span className="text-[10px] mt-1 font-medium">聊天</span>
+            {totalUnread > 0 && (
+              <span className="absolute -top-1 right-2 px-1 rounded-full bg-pink-500 text-white text-[9px] font-bold">
+                {totalUnread}
+              </span>
+            )}
           </button>
 
           <button
-            id="tab-toolkit"
-            onClick={() => setCurrentPage('toolkit')}
+            id="tab-moments"
+            onClick={() => {
+              setCurrentPage('moments');
+              setHasUnreadMoments(false);
+              localStorage.setItem('hasUnreadMoments', 'false');
+            }}
             className={`flex flex-col items-center justify-center transition relative ${
-              currentPage === 'toolkit' ? 'text-purple-400 scale-105' : 'text-white/40 hover:text-white/70'
+              currentPage === 'moments' ? 'text-purple-400 scale-105' : 'text-white/40 hover:text-white/70'
             }`}
           >
-            <Zap size={20} />
-            <span className="text-[10px] mt-1 font-medium">工坊</span>
-            <span className="absolute -top-1 -right-1 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
-            </span>
+            <Sparkles size={20} />
+            <span className="text-[10px] mt-1 font-medium">动态</span>
+            {hasUnreadMoments && currentPage !== 'moments' && (
+              <span className="absolute -top-1 -right-0.5 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
+              </span>
+            )}
           </button>
 
           <button
@@ -1480,6 +1518,7 @@ export default function App() {
         onUpdateIntimacy={(added) => {
           if (detailRole) handleUpdateIntimacy(detailRole.id, added);
         }}
+        onOpenRecharge={() => setShowRechargeModal(true)}
       />
 
       <CreateRoleModal

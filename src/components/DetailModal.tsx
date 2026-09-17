@@ -1,9 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import { Role } from '../types';
-import { X, Share2, MoreHorizontal, Heart, MessageCircle, Star, Sparkles, Maximize2, ShieldCheck } from 'lucide-react';
+import {
+  X,
+  Share2,
+  MoreHorizontal,
+  Heart,
+  MessageCircle,
+  Star,
+  Sparkles,
+  Maximize2,
+  ShieldCheck,
+  Lock,
+  Zap,
+  CheckCircle2,
+  Presentation,
+  BarChart3,
+  AlarmClock,
+  ImageIcon as ImageIconLucide,
+  BookOpen,
+  Headphones,
+  Scale,
+  Award,
+  GraduationCap,
+  History,
+  ChevronRight,
+  CreditCard
+} from 'lucide-react';
 import { getIntimacyData, getIntimacyPercent } from '../utils/intimacy';
 import { IntimacyModal } from './IntimacyModal';
 import { ROLE_MEDIA_MAP } from '../data/rolePortraits';
+import { ROLE_AI_TOOLS, isRoleUnlocked, unlockRoleToolkit, RoleToolInfo } from '../utils/roleUnlock';
 
 interface DetailModalProps {
   role: Role | null;
@@ -11,10 +37,11 @@ interface DetailModalProps {
   isFollowed: boolean;
   onClose: () => void;
   onToggleFollow: () => void;
-  onStartChat: (role: Role) => void;
+  onStartChat: (role: Role, prompt?: string) => void;
   onShowToast: (msg: string) => void;
   intimacyPoints?: number;
   onUpdateIntimacy?: (added: number) => void;
+  onOpenRecharge?: () => void;
 }
 
 export const DetailModal: React.FC<DetailModalProps> = ({
@@ -27,13 +54,20 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   onShowToast,
   intimacyPoints = 0,
   onUpdateIntimacy,
+  onOpenRecharge,
 }) => {
   const [showFullPortrait, setShowFullPortrait] = useState(false);
   const [showIntimacyModal, setShowIntimacyModal] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
+  const [showUnlockConfirm, setShowUnlockConfirm] = useState<boolean>(false);
+  const [selectedTool, setSelectedTool] = useState<RoleToolInfo | null>(null);
 
   useEffect(() => {
     setImgError(false);
+    if (role) {
+      setIsUnlocked(isRoleUnlocked(role.id));
+    }
   }, [role?.id]);
 
   if (!isOpen || !role) return null;
@@ -41,6 +75,24 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   const intimacyInfo = getIntimacyData(intimacyPoints);
   const intimacyPercent = getIntimacyPercent(intimacyPoints);
   const portraitSrc = ROLE_MEDIA_MAP[role.id]?.portraitUrl || role.portraitUrl || role.avatarUrl;
+
+  const handleUnlockClick = () => {
+    unlockRoleToolkit(role.id);
+    setIsUnlocked(true);
+    setShowUnlockConfirm(false);
+    onShowToast(`🎉 成功充值解锁【${role.name}】10 大专属 AI 智囊特权！`);
+  };
+
+  const handleToolClick = (tool: RoleToolInfo) => {
+    if (!isUnlocked) {
+      setSelectedTool(tool);
+      setShowUnlockConfirm(true);
+      return;
+    }
+    // Is unlocked
+    const prompt = tool.promptTemplate(role.name);
+    onStartChat(role, prompt);
+  };
 
   return (
     <div
@@ -178,6 +230,93 @@ export const DetailModal: React.FC<DetailModalProps> = ({
           </div>
         </div>
 
+        {/* --- CHARACTER 10 AI TOOLKIT SECTION (充值解锁) --- */}
+        <div className="my-4 p-4 rounded-2xl bg-gradient-to-b from-[#131022] via-[#0d0b17] to-[#0a0a0f] border border-purple-500/30 shadow-xl relative overflow-hidden">
+          {/* Subtle glow background */}
+          <div className="absolute -right-8 -top-8 w-28 h-28 bg-purple-500/10 rounded-full blur-xl pointer-events-none" />
+
+          {/* Header */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm">
+                <Zap size={15} />
+              </span>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <span>【{role.name}】10 大专属 AI 智囊技能</span>
+                </h3>
+                <p className="text-[10px] text-white/50">角色拟真口吻 · 全能生产力与专属伴侣服务</p>
+              </div>
+            </div>
+
+            {isUnlocked ? (
+              <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
+                <CheckCircle2 size={11} />
+                <span>已解锁</span>
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 text-[10px] font-bold border border-pink-500/30 flex items-center gap-1">
+                <Lock size={10} />
+                <span>充值解锁</span>
+              </span>
+            )}
+          </div>
+
+          {/* Unlock Banner CTA if locked */}
+          {!isUnlocked && (
+            <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-purple-900/40 via-pink-900/30 to-purple-900/40 border border-pink-500/40 text-center space-y-2">
+              <p className="text-[11px] text-purple-200/90 leading-relaxed">
+                解锁后【{role.name}】将全天候为你处理 PPT 制作、数据分析、出差闹钟、睡前故事、学习抽查等 10 大专属特权！
+              </p>
+              <button
+                onClick={handleUnlockClick}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:opacity-95 text-white text-xs font-extrabold shadow-lg shadow-purple-500/30 active:scale-95 transition flex items-center justify-center gap-2"
+              >
+                <Zap size={14} className="fill-white" />
+                <span>⚡ 充值 ¥10 / 钻石一键解锁【{role.name}】智囊包</span>
+              </button>
+            </div>
+          )}
+
+          {/* 10 Tools Grid */}
+          <div className="mt-3.5 grid grid-cols-2 gap-2">
+            {ROLE_AI_TOOLS.map((tool) => (
+              <button
+                key={tool.id}
+                onClick={() => handleToolClick(tool)}
+                className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 relative group overflow-hidden active:scale-95 ${
+                  isUnlocked
+                    ? 'bg-white/[0.04] hover:bg-white/10 border-white/10 text-white hover:border-purple-500/40'
+                    : 'bg-white/[0.02] border-white/5 text-white/60 hover:bg-white/5'
+                }`}
+              >
+                <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${
+                  isUnlocked ? 'bg-purple-500/20 text-purple-300' : 'bg-white/5 text-white/40'
+                }`}>
+                  {tool.id === 'ppt' && <Presentation size={14} />}
+                  {tool.id === 'analysis' && <BarChart3 size={14} />}
+                  {tool.id === 'alarm' && <AlarmClock size={14} />}
+                  {tool.id === 'image' && <ImageIconLucide size={14} />}
+                  {tool.id === 'copywrite' && <BookOpen size={14} />}
+                  {tool.id === 'story' && <Headphones size={14} />}
+                  {tool.id === 'decision' && <Scale size={14} />}
+                  {tool.id === 'milestone' && <Award size={14} />}
+                  {tool.id === 'study' && <GraduationCap size={14} />}
+                  {tool.id === 'stream' && <History size={14} />}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-white flex items-center justify-between">
+                    <span className="truncate">{tool.shortName}</span>
+                    {!isUnlocked && <Lock size={10} className="text-pink-400 shrink-0 ml-1" />}
+                  </div>
+                  <div className="text-[10px] text-white/40 truncate mt-0.5">{tool.desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Description Bio */}
         <div className="my-3">
           <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">角色人设自白</h3>
@@ -302,6 +441,78 @@ export const DetailModal: React.FC<DetailModalProps> = ({
           if (onUpdateIntimacy) onUpdateIntimacy(10);
         }}
       />
+
+      {/* Unlock Toolkit Modal */}
+      {showUnlockConfirm && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 select-none"
+          onClick={() => setShowUnlockConfirm(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-[#121020] border border-pink-500/30 rounded-3xl p-5 shadow-2xl relative overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowUnlockConfirm(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="text-center pt-2">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white mx-auto mb-3 shadow-lg shadow-pink-500/30 border border-white/20">
+                <Zap size={28} className="fill-white" />
+              </div>
+
+              <h3 className="text-base font-extrabold text-white">
+                解锁【{role.name}】10 大专属 AI 智囊
+              </h3>
+              <p className="text-xs text-purple-200/80 mt-1.5 leading-relaxed px-2">
+                {selectedTool ? `您选中的【${selectedTool.title}】功能需要充值解锁！` : '该角色的 10 大智囊能力需充值解锁！'}
+                解锁后【{role.name}】将全天候以专属人设，为你处理 PPT 提炼、数据分析、睡前故事、事件提醒等全能服务。
+              </p>
+
+              <div className="my-4 p-3 rounded-2xl bg-white/[0.04] border border-white/10 text-left space-y-1.5 text-xs text-white/70">
+                <div className="flex items-center gap-2 text-emerald-300 font-semibold">
+                  <CheckCircle2 size={13} />
+                  <span>一次充值，该角色永久免费使用</span>
+                </div>
+                <div className="flex items-center gap-2 text-purple-300 font-semibold">
+                  <CheckCircle2 size={13} />
+                  <span>包含 PPT/报表/闹钟/故事等 10 大秘籍</span>
+                </div>
+                <div className="flex items-center gap-2 text-pink-300 font-semibold">
+                  <CheckCircle2 size={13} />
+                  <span>与【{role.name}】聊天时可随时调用</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  onClick={handleUnlockClick}
+                  className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:opacity-95 text-white text-sm font-extrabold shadow-lg shadow-purple-500/30 active:scale-95 transition flex items-center justify-center gap-2"
+                >
+                  <Zap size={16} className="fill-white" />
+                  <span>⚡ 充值 ¥10 / 钻石一键解锁特权</span>
+                </button>
+
+                {onOpenRecharge && (
+                  <button
+                    onClick={() => {
+                      setShowUnlockConfirm(false);
+                      onOpenRecharge();
+                    }}
+                    className="w-full py-2.5 text-xs font-semibold text-white/50 hover:text-white flex items-center justify-center gap-1.5 transition"
+                  >
+                    <CreditCard size={13} />
+                    <span>前往网巢充值中心选购其它档位 ›</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -13,6 +13,20 @@ import {
   MoreVertical,
   ImageIcon,
   X,
+  Zap,
+  Lock,
+  CheckCircle2,
+  Presentation,
+  BarChart3,
+  AlarmClock,
+  ImageIcon as ImageIconLucide,
+  BookOpen,
+  Headphones,
+  Scale,
+  Award,
+  GraduationCap,
+  History,
+  CreditCard
 } from 'lucide-react';
 import { RoleAvatar } from './RoleAvatar';
 import {
@@ -21,6 +35,7 @@ import {
   AddChatIntimacyResult,
 } from '../utils/intimacy';
 import { IntimacyModal } from './IntimacyModal';
+import { ROLE_AI_TOOLS, isRoleUnlocked, unlockRoleToolkit, RoleToolInfo } from '../utils/roleUnlock';
 
 interface ChatViewProps {
   role: Role;
@@ -67,6 +82,40 @@ export const ChatView: React.FC<ChatViewProps> = ({
     x: number;
     y: number;
   } | null>(null);
+
+  // Role 10 AI Toolkit state
+  const [showToolkitSheet, setShowToolkitSheet] = useState(false);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [selectedTool, setSelectedTool] = useState<RoleToolInfo | null>(null);
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => isRoleUnlocked(role.id));
+
+  useEffect(() => {
+    setIsUnlocked(isRoleUnlocked(role.id));
+  }, [role.id]);
+
+  const handleUseTool = (tool: RoleToolInfo) => {
+    if (!isUnlocked) {
+      setSelectedTool(tool);
+      setShowUnlockModal(true);
+      return;
+    }
+    // Execute tool prompt
+    const prompt = tool.promptTemplate(role.name);
+    setInputText(prompt);
+    setShowToolkitSheet(false);
+    onShowToast(`已载入【${tool.title}】的专属秘籍指令，发送即可让${role.name}执行！`);
+  };
+
+  const handleUnlockToolkit = () => {
+    unlockRoleToolkit(role.id);
+    setIsUnlocked(true);
+    setShowUnlockModal(false);
+    onShowToast(`🎉 充值成功！已永久解锁【${role.name}】10 大专属 AI 智囊特权！`);
+    if (selectedTool) {
+      const prompt = selectedTool.promptTemplate(role.name);
+      setInputText(prompt);
+    }
+  };
 
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -498,6 +547,38 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       )}
 
+      {/* Role AI Toolkit Quick Strip */}
+      <div className="px-3 py-1.5 bg-[#0c0c14]/95 border-t border-white/5 flex items-center justify-between shrink-0 gap-2">
+        <button
+          onClick={() => setShowToolkitSheet(true)}
+          className="px-2.5 py-1 rounded-xl bg-gradient-to-r from-purple-900/40 via-pink-900/30 to-purple-900/40 border border-purple-500/30 text-purple-200 text-[11px] font-bold flex items-center gap-1.5 hover:border-purple-400 transition active:scale-95 shadow-sm shrink-0"
+        >
+          <Zap size={13} className="text-pink-400" />
+          <span>【{role.name}】智囊</span>
+          {isUnlocked ? (
+            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold">已解锁</span>
+          ) : (
+            <span className="text-[9px] px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 font-bold flex items-center gap-0.5">
+              <Lock size={9} /> 充值解锁
+            </span>
+          )}
+        </button>
+
+        {/* Quick Chip Shortcuts */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1">
+          {ROLE_AI_TOOLS.slice(0, 5).map((tool) => (
+            <button
+              key={tool.id}
+              onClick={() => handleUseTool(tool)}
+              className="px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] text-white/80 whitespace-nowrap shrink-0 flex items-center gap-1 transition active:scale-95"
+            >
+              <span>{tool.shortName}</span>
+              {!isUnlocked && <Lock size={8} className="text-pink-400 shrink-0" />}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Bottom Input Area */}
       <div className="p-3 pb-6 bg-[#0c0c14]/95 backdrop-blur-xl border-t border-white/5 flex items-center gap-2 z-20 shrink-0">
         <input
@@ -668,6 +749,172 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   设为专属壁纸
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role AI Toolkit Drawer Sheet */}
+      {showToolkitSheet && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col justify-end animate-in fade-in duration-200"
+          onClick={() => setShowToolkitSheet(false)}
+        >
+          <div
+            className="w-full bg-[#121020] border-t border-purple-500/30 rounded-t-3xl p-5 max-h-[75vh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-250"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Sheet Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-sm">
+                  <Zap size={16} />
+                </span>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-1.5">
+                    <span>【{role.name}】10 大专属 AI 智囊</span>
+                  </h3>
+                  <p className="text-[11px] text-white/50">角色人设口吻 · 点击指令即刻与角色协同</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {isUnlocked ? (
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold border border-emerald-500/30 flex items-center gap-1">
+                    <CheckCircle2 size={11} />
+                    <span>已解锁</span>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setShowToolkitSheet(false);
+                      setShowUnlockModal(true);
+                    }}
+                    className="px-2.5 py-1 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white text-[10px] font-extrabold flex items-center gap-1 shadow-md shadow-purple-500/30"
+                  >
+                    <Lock size={10} />
+                    <span>充值解锁</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowToolkitSheet(false)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Tools List */}
+            <div className="flex-1 overflow-y-auto py-3 space-y-2 no-scrollbar">
+              {ROLE_AI_TOOLS.map((tool) => (
+                <button
+                  key={tool.id}
+                  onClick={() => handleUseTool(tool)}
+                  className={`w-full p-3 rounded-2xl border text-left transition flex items-center justify-between gap-3 active:scale-[0.99] ${
+                    isUnlocked
+                      ? 'bg-white/[0.04] hover:bg-white/10 border-white/10 text-white'
+                      : 'bg-white/[0.02] hover:bg-white/5 border-white/5 text-white/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      isUnlocked ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/40'
+                    }`}>
+                      {tool.id === 'ppt' && <Presentation size={18} />}
+                      {tool.id === 'analysis' && <BarChart3 size={18} />}
+                      {tool.id === 'alarm' && <AlarmClock size={18} />}
+                      {tool.id === 'image' && <ImageIconLucide size={18} />}
+                      {tool.id === 'copywrite' && <BookOpen size={18} />}
+                      {tool.id === 'story' && <Headphones size={18} />}
+                      {tool.id === 'decision' && <Scale size={18} />}
+                      {tool.id === 'milestone' && <Award size={18} />}
+                      {tool.id === 'study' && <GraduationCap size={18} />}
+                      {tool.id === 'stream' && <History size={18} />}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <span>{tool.title}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-purple-200/80 font-normal">
+                          {tool.shortName}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-white/45 truncate mt-0.5">{tool.desc}</div>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0">
+                    {isUnlocked ? (
+                      <span className="px-2.5 py-1 rounded-xl bg-purple-500/20 text-purple-200 text-xs font-semibold hover:bg-purple-500/30 border border-purple-500/30">
+                        调用秘籍
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-1 text-pink-400 text-xs font-semibold">
+                        <Lock size={12} />
+                        <span>未解锁</span>
+                      </div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unlock Confirmation Modal */}
+      {showUnlockModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 select-none"
+          onClick={() => setShowUnlockModal(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-[#121020] border border-pink-500/30 rounded-3xl p-5 shadow-2xl relative overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowUnlockModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-white/60 hover:text-white flex items-center justify-center transition"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="text-center pt-2">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white mx-auto mb-3 shadow-lg shadow-pink-500/30 border border-white/20">
+                <Zap size={28} className="fill-white" />
+              </div>
+
+              <h3 className="text-base font-extrabold text-white">
+                解锁【{role.name}】10 大专属 AI 智囊
+              </h3>
+              <p className="text-xs text-purple-200/80 mt-1.5 leading-relaxed px-2">
+                {selectedTool ? `您选中的【${selectedTool.title}】功能需要充值解锁！` : '该角色的 10 大智囊能力需充值解锁！'}
+                解锁后【{role.name}】将全天候以专属人设，为你处理 PPT 提炼、数据分析、睡前故事、事件提醒等全能服务。
+              </p>
+
+              <div className="my-4 p-3 rounded-2xl bg-white/[0.04] border border-white/10 text-left space-y-1.5 text-xs text-white/70">
+                <div className="flex items-center gap-2 text-emerald-300 font-semibold">
+                  <CheckCircle2 size={13} />
+                  <span>一次充值，该角色永久免费使用</span>
+                </div>
+                <div className="flex items-center gap-2 text-purple-300 font-semibold">
+                  <CheckCircle2 size={13} />
+                  <span>包含 PPT/报表/闹钟/故事等 10 大秘籍</span>
+                </div>
+                <div className="flex items-center gap-2 text-pink-300 font-semibold">
+                  <CheckCircle2 size={13} />
+                  <span>与【{role.name}】聊天时随时快速调用</span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleUnlockToolkit}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:opacity-95 text-white text-sm font-extrabold shadow-lg shadow-purple-500/30 active:scale-95 transition flex items-center justify-center gap-2"
+              >
+                <Zap size={16} className="fill-white" />
+                <span>⚡ 充值 ¥10 / 钻石一键解锁特权</span>
+              </button>
             </div>
           </div>
         </div>

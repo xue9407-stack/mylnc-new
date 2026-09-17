@@ -85,12 +85,44 @@ export interface TP5ExportData {
   deployGuide: string;
 }
 
+export interface MomentComment {
+  id: string;
+  userName: string;
+  userAvatar?: string;
+  text: string;
+  time: string;
+  likes: number;
+  isLiked?: boolean;
+}
+
+export interface MomentPost {
+  id: string;
+  roleId: string;
+  roleName: string;
+  roleTitle: string;
+  roleAvatar: string;
+  roleCover?: string;
+  time: string;
+  content: string;
+  images?: string[];
+  audioVoice?: {
+    duration: string;
+    transcript: string;
+  };
+  location?: string;
+  likes: number;
+  isLiked?: boolean;
+  comments: MomentComment[];
+  shares: number;
+  tag?: string;
+}
+
 export type AppPage =
   | 'login'
   | 'home'
   | 'explore'
   | 'messages'
-  | 'toolkit'
+  | 'moments'
   | 'profile'
   | 'chat'
   | 'follows'
