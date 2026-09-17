@@ -838,15 +838,6 @@ export default function App() {
               )}
             </div>
           </div>
-
-          {/* Floating Plus Button (+) in bottom right */}
-          <button
-            onClick={() => setCurrentPage('creator')}
-            className="absolute bottom-20 right-5 w-12 h-12 rounded-full bg-gradient-to-tr from-purple-600 via-pink-500 to-purple-500 text-white flex items-center justify-center shadow-2xl shadow-purple-500/50 hover:scale-110 active:scale-90 transition z-20 border border-white/30"
-            title="角色创作中心"
-          >
-            <Plus size={24} />
-          </button>
         </div>
       )}
 
@@ -1432,23 +1423,7 @@ export default function App() {
             <span className="text-[10px] mt-1 font-medium">发现</span>
           </button>
 
-          <button
-            id="tab-messages"
-            onClick={() => setCurrentPage('messages')}
-            className={`flex flex-col items-center justify-center transition relative ${
-              currentPage === 'messages' ? 'text-purple-400 scale-105' : 'text-white/40 hover:text-white/70'
-            }`}
-          >
-            <MessageSquare size={20} />
-            <span className="text-[10px] mt-1 font-medium">聊天</span>
-            {totalUnread > 0 && (
-              <span className="absolute -top-1 right-2 px-1 rounded-full bg-pink-500 text-white text-[9px] font-bold">
-                {totalUnread}
-              </span>
-            )}
-          </button>
-
-          {/* Creator Tab - Positioned between Chat and Profile */}
+          {/* Creator Tab - Positioned between Discovery and Chat */}
           <button
             id="tab-creator"
             onClick={() => setCurrentPage('creator')}
@@ -1464,6 +1439,22 @@ export default function App() {
               <Plus size={16} />
             </div>
             <span className="text-[10px] mt-0.5 font-medium">创作</span>
+          </button>
+
+          <button
+            id="tab-messages"
+            onClick={() => setCurrentPage('messages')}
+            className={`flex flex-col items-center justify-center transition relative ${
+              currentPage === 'messages' ? 'text-purple-400 scale-105' : 'text-white/40 hover:text-white/70'
+            }`}
+          >
+            <MessageSquare size={20} />
+            <span className="text-[10px] mt-1 font-medium">聊天</span>
+            {totalUnread > 0 && (
+              <span className="absolute -top-1 right-2 px-1 rounded-full bg-pink-500 text-white text-[9px] font-bold">
+                {totalUnread}
+              </span>
+            )}
           </button>
 
           <button
