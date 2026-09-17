@@ -4,14 +4,14 @@ import { api } from './services/api';
 import { PhoneFrame } from './components/PhoneFrame';
 import { DetailModal } from './components/DetailModal';
 import { ChatView } from './components/ChatView';
-import { Tp5DevModal } from './components/Tp5DevModal';
-import { CreateRoleModal } from './components/CreateRoleModal';
 import { RechargeModal } from './components/RechargeModal';
 import { Toast } from './components/Toast';
 import { RoleAvatar } from './components/RoleAvatar';
 import { HelpFeedbackView } from './components/HelpFeedbackView';
 import { SettingsView } from './components/SettingsView';
 import { CategoryChips } from './components/CategoryChips';
+import { CreatorView } from './components/CreatorView';
+import { HomeRecommendView } from './components/HomeRecommendView';
 import { loadAllIntimacies, saveIntimacy, getIntimacyData, addDailyChatIntimacy, AddChatIntimacyResult } from './utils/intimacy';
 import { ROLE_MEDIA_MAP } from './data/rolePortraits';
 import { DEFAULT_ROLES } from './data/rolesData';
@@ -41,6 +41,7 @@ import {
   Sparkles,
   Radio,
   Globe,
+  Compass,
 } from 'lucide-react';
 
 const CATEGORIES = ['全部', '霸总', '温柔', '邻家', '病娇', '御姐', '学长', '治愈', '高冷', '阳光'];
@@ -51,7 +52,7 @@ export default function App() {
     return localStorage.getItem('currentUser') || null;
   });
   const [currentPage, setCurrentPage] = useState<AppPage>(() => {
-    return localStorage.getItem('currentUser') ? 'home' : 'login';
+    return localStorage.getItem('currentUser') ? 'recommend' : 'login';
   });
   const [activeRole, setActiveRole] = useState<Role | null>(null);
   const [detailRole, setDetailRole] = useState<Role | null>(null);
@@ -150,8 +151,6 @@ export default function App() {
 
   // Modals & Tools
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [showDevModal, setShowDevModal] = useState<boolean>(false);
-  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [showRechargeModal, setShowRechargeModal] = useState<boolean>(false);
 
   // Helper: Toast Message
@@ -212,6 +211,27 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('conversations', JSON.stringify(conversations));
   }, [conversations]);
+
+  const handleRoleCreateSuccess = (newRole: Role) => {
+    setRoles((prev) => [newRole, ...prev]);
+    setFollows((prev) => [newRole.id, ...prev]);
+    try {
+      const existing = JSON.parse(localStorage.getItem('custom_created_roles') || '[]');
+      localStorage.setItem('custom_created_roles', JSON.stringify([newRole, ...existing]));
+    } catch {
+      localStorage.setItem('custom_created_roles', JSON.stringify([newRole]));
+    }
+  };
+
+  const handleDeleteCustomRole = (roleId: string) => {
+    setRoles((prev) => prev.filter((r) => r.id !== roleId));
+    try {
+      const remaining = roles.filter((r) => r.id.startsWith('custom_') && r.id !== roleId);
+      localStorage.setItem('custom_created_roles', JSON.stringify(remaining));
+    } catch {
+      // ignore
+    }
+  };
 
   // Load chat messages when entering chat with a role
   useEffect(() => {
@@ -537,7 +557,7 @@ export default function App() {
   );
 
   return (
-    <PhoneFrame onOpenDevCenter={() => setShowDevModal(true)}>
+    <PhoneFrame>
       <Toast message={toastMessage} />
 
       {/* 1. LOGIN / REGISTER PAGE */}
@@ -639,7 +659,20 @@ export default function App() {
         </div>
       )}
 
-      {/* 2. HOME PAGE */}
+      {/* 1.5 RECOMMEND / HOME IMMERSIVE FEED PAGE */}
+      {currentPage === 'recommend' && (
+        <HomeRecommendView
+          roles={roles}
+          follows={follows}
+          onToggleFollow={handleToggleFollow}
+          onStartChat={startChatWithRole}
+          onOpenDetail={setDetailRole}
+          onShowToast={showToast}
+          onOpenSearch={() => setCurrentPage('home')}
+        />
+      )}
+
+      {/* 2. HOME (DISCOVERY) PAGE */}
       {currentPage === 'home' && (
         <div id="page-home" className="h-full flex flex-col bg-gradient-to-b from-[#180e33] via-[#0b0a13] to-[#0a0a0f] overflow-hidden relative">
           {/* Top Search Bar */}
@@ -808,9 +841,9 @@ export default function App() {
 
           {/* Floating Plus Button (+) in bottom right */}
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => setCurrentPage('creator')}
             className="absolute bottom-20 right-5 w-12 h-12 rounded-full bg-gradient-to-tr from-purple-600 via-pink-500 to-purple-500 text-white flex items-center justify-center shadow-2xl shadow-purple-500/50 hover:scale-110 active:scale-90 transition z-20 border border-white/30"
-            title="创建我的角色"
+            title="角色创作中心"
           >
             <Plus size={24} />
           </button>
@@ -1016,6 +1049,19 @@ export default function App() {
             )}
           </div>
         </div>
+      )}
+
+      {/* 4. CREATOR PAGE */}
+      {currentPage === 'creator' && (
+        <CreatorView
+          roles={roles}
+          onCreateRoleSuccess={(newRole) => {
+            handleRoleCreateSuccess(newRole);
+          }}
+          onStartChat={startChatWithRole}
+          onShowToast={showToast}
+          onDeleteCustomRole={handleDeleteCustomRole}
+        />
       )}
 
       {/* 5. PROFILE PAGE */}
@@ -1311,46 +1357,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 9. SUB-PAGE: CREATOR CENTER */}
-      {currentPage === 'creator' && (
-        <div className="h-full overflow-y-auto p-4 pb-28 bg-[#0a0a0f] space-y-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setCurrentPage('profile')}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white/70"
-            >
-              <ArrowLeft size={18} />
-            </button>
-            <h2 className="text-base font-bold text-white">创作中心</h2>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="p-4 rounded-2xl bg-white/5 border border-purple-500/30 hover:bg-purple-900/20 text-center transition"
-            >
-              <div className="text-3xl mb-1">✨</div>
-              <div className="text-sm font-bold text-white">创建新角色</div>
-              <div className="text-[10px] text-purple-300/60 mt-0.5">自定义人设与开场</div>
-            </button>
-            <button
-              onClick={() => showToast('已展示你已上架的自制角色')}
-              className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 text-center transition"
-            >
-              <div className="text-3xl mb-1">📚</div>
-              <div className="text-sm font-bold text-white">我的作品</div>
-              <div className="text-[10px] text-white/40 mt-0.5">共上架 2 个角色</div>
-            </button>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-            <div className="text-xs text-white/60 mb-1">创作收益 (ThinkPHP 5 资金流水)</div>
-            <div className="text-2xl font-bold text-emerald-400 font-mono">¥ 328.50</div>
-            <div className="text-xs text-white/40 mt-1">已累计被聊 1.2w 次，获得打赏 42 次</div>
-          </div>
-        </div>
-      )}
-
       {/* 11. SUB-PAGE: SETTINGS */}
       {currentPage === 'settings' && (
         <SettingsView
@@ -1405,14 +1411,25 @@ export default function App() {
           className="absolute bottom-0 left-0 right-0 h-16 bg-[#0a0a0f]/95 backdrop-blur-2xl border-t border-white/10 flex items-center justify-around px-4 z-40"
         >
           <button
+            id="tab-recommend"
+            onClick={() => setCurrentPage('recommend')}
+            className={`flex flex-col items-center justify-center transition ${
+              currentPage === 'recommend' ? 'text-pink-400 scale-105' : 'text-white/40 hover:text-white/70'
+            }`}
+          >
+            <Sparkles size={20} className={currentPage === 'recommend' ? 'text-pink-400 fill-pink-400/20' : ''} />
+            <span className="text-[10px] mt-1 font-medium">首页</span>
+          </button>
+
+          <button
             id="tab-home"
             onClick={() => setCurrentPage('home')}
             className={`flex flex-col items-center justify-center transition ${
               currentPage === 'home' ? 'text-purple-400 scale-105' : 'text-white/40 hover:text-white/70'
             }`}
           >
-            <Globe size={20} />
-            <span className="text-[10px] mt-1 font-medium">首页</span>
+            <Compass size={20} />
+            <span className="text-[10px] mt-1 font-medium">发现</span>
           </button>
 
           <button
@@ -1429,6 +1446,24 @@ export default function App() {
                 {totalUnread}
               </span>
             )}
+          </button>
+
+          {/* Creator Tab - Positioned between Chat and Profile */}
+          <button
+            id="tab-creator"
+            onClick={() => setCurrentPage('creator')}
+            className={`flex flex-col items-center justify-center transition relative ${
+              currentPage === 'creator' ? 'text-purple-400 scale-105' : 'text-white/40 hover:text-white/70'
+            }`}
+          >
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center transition ${
+              currentPage === 'creator'
+                ? 'bg-gradient-to-tr from-purple-500 via-pink-500 to-purple-500 text-white shadow-md shadow-purple-500/40'
+                : 'bg-white/10 text-white/70 hover:bg-white/20'
+            }`}>
+              <Plus size={16} />
+            </div>
+            <span className="text-[10px] mt-0.5 font-medium">创作</span>
           </button>
 
           <button
@@ -1470,16 +1505,6 @@ export default function App() {
         onOpenRecharge={() => setShowRechargeModal(true)}
       />
 
-      <CreateRoleModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onCreateSuccess={(newRole) => {
-          setRoles((prev) => [newRole, ...prev]);
-          setFollows((prev) => [newRole.id, ...prev]);
-        }}
-        onShowToast={showToast}
-      />
-
       <RechargeModal
         isOpen={showRechargeModal}
         onClose={() => setShowRechargeModal(false)}
@@ -1489,12 +1514,6 @@ export default function App() {
             money: prev.money + amt,
           }));
         }}
-        onShowToast={showToast}
-      />
-
-      <Tp5DevModal
-        isOpen={showDevModal}
-        onClose={() => setShowDevModal(false)}
         onShowToast={showToast}
       />
     </PhoneFrame>

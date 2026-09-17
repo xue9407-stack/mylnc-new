@@ -119,6 +119,7 @@ export interface MomentPost {
 
 export type AppPage =
   | 'login'
+  | 'recommend'
   | 'home'
   | 'explore'
   | 'messages'
