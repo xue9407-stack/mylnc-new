@@ -86,6 +86,7 @@ export interface UserProfile {
   emergencyContact?: string;
   uid?: string;
   diamonds?: number;
+  backgroundImage?: string;
 }
 
 export interface UserStats {

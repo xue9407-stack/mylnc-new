@@ -50,6 +50,7 @@ interface ChatViewProps {
   onChatInteraction?: () => AddChatIntimacyResult;
   onDeleteMessage?: (msgId: number) => void;
   onRegenerateMessage?: (roleMsgId: number) => void;
+  backgroundImage?: string;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -65,6 +66,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onChatInteraction,
   onDeleteMessage,
   onRegenerateMessage,
+  backgroundImage,
 }) => {
   const [inputText, setInputText] = useState('');
   const [showIntimacyModal, setShowIntimacyModal] = useState(false);
@@ -260,7 +262,19 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   return (
-    <div id="chat-view-container" className="h-full flex flex-col bg-[#08080d] relative overflow-hidden select-none">
+    <div
+      id="chat-view-container"
+      className="h-full flex flex-col bg-[#08080d] relative overflow-hidden select-none"
+      style={backgroundImage ? {
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      } : undefined}
+    >
+      {backgroundImage && (
+        <div className="absolute inset-0 bg-[#08080d]/85 backdrop-blur-[1px] z-0 pointer-events-none" />
+      )}
       {/* Top Header */}
       <div className="px-4 py-2.5 bg-[#0d0d14]/95 backdrop-blur-xl border-b border-white/5 flex items-center justify-between z-20 shrink-0">
         <div className="flex items-center gap-2.5">
@@ -349,7 +363,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {/* Intimacy Top Mini-Progress Bar */}
       <div
         onClick={() => setShowIntimacyModal(true)}
-        className="h-1 w-full bg-white/5 cursor-pointer hover:h-2 transition-all relative overflow-hidden"
+        className="h-1 w-full bg-white/5 cursor-pointer hover:h-2 transition-all relative z-10 overflow-hidden"
         title="点击查看羁绊等级"
       >
         <div
@@ -359,7 +373,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       </div>
 
       {/* Message Stream */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 relative z-10">
         {/* If no message, show Persona Card & Topics */}
         {messages.length === 0 && (
           <div className="text-center py-6 px-3 bg-white/[0.02] border border-white/5 rounded-2xl my-2">
@@ -525,7 +539,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       {/* Quick Suggestion Chips */}
       {messages.length > 0 && (
-        <div className="px-4 py-1 flex gap-2 overflow-x-auto no-scrollbar shrink-0">
+        <div className="px-4 py-1 flex gap-2 overflow-x-auto no-scrollbar shrink-0 relative z-10">
           <button
             onClick={() => handleSendText('你现在在忙什么呢？')}
             className="shrink-0 px-2.5 py-1 rounded-full bg-white/5 text-[11px] text-white/60 hover:text-white hover:bg-white/10 border border-white/5 transition"

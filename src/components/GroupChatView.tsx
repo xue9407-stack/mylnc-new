@@ -25,6 +25,7 @@ interface GroupChatViewProps {
   onClearHistory: (groupId: string) => void;
   onShowToast: (msg: string) => void;
   onAddMember?: (groupId: string, roleId: string) => void;
+  backgroundImage?: string;
 }
 
 export const GroupChatView: React.FC<GroupChatViewProps> = ({
@@ -36,6 +37,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   onTriggerAiCollision,
   onClearHistory,
   onShowToast,
+  backgroundImage,
 }) => {
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -46,6 +48,10 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
 
   // Group members list
   const memberRoles = roles.filter((r) => group.memberRoleIds.includes(r.id));
+  const allMembers = [
+    { id: 'user', name: '我', title: '群成员', avatarUrl: '', emoji: '👤', cover: '' },
+    ...memberRoles
+  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -107,7 +113,18 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#0a0a0f] relative overflow-hidden">
+    <div
+      className="h-full flex flex-col bg-[#0a0a0f] relative overflow-hidden"
+      style={backgroundImage ? {
+        backgroundImage: `url(${backgroundImage})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      } : undefined}
+    >
+      {backgroundImage && (
+        <div className="absolute inset-0 bg-[#0a0a0f]/85 backdrop-blur-[1px] z-0 pointer-events-none" />
+      )}
       {/* Top Header */}
       <div className="px-4 py-3 bg-[#13111e]/90 backdrop-blur-md border-b border-white/10 shrink-0 flex items-center justify-between z-20">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -124,7 +141,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-extrabold text-white truncate">{group.name}</h1>
               <span className="px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-bold border border-purple-500/30 shrink-0">
-                {memberRoles.length}人派对
+                {memberRoles.length + 1}人派对
               </span>
             </div>
             {group.topic ? (
@@ -140,7 +157,9 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
         {/* Member Avatar Stack */}
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           <div className="flex -space-x-2 overflow-hidden py-0.5">
-            {memberRoles.slice(0, 4).map((m) => (
+            {/* Show "Me" first */}
+            <div className="inline-block ring-2 ring-[#0a0a0f] rounded-full bg-purple-900/50 flex items-center justify-center w-6 h-6 text-[10px] text-white font-bold">我</div>
+            {memberRoles.slice(0, 3).map((m) => (
               <div key={m.id} className="inline-block ring-2 ring-[#0a0a0f] rounded-full">
                 <RoleAvatar
                   name={m.name}
@@ -167,7 +186,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       {showGroupMenu && (
         <div className="absolute top-14 right-4 z-40 w-56 bg-[#171526] border border-purple-500/30 rounded-2xl p-3 shadow-2xl space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
           <div className="flex items-center justify-between pb-2 border-b border-white/10 text-xs font-bold text-white">
-            <span>群成员 ({memberRoles.length})</span>
+            <span>群成员 ({allMembers.length})</span>
             <button
               onClick={() => setShowGroupMenu(false)}
               className="text-white/40 hover:text-white"
@@ -176,7 +195,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
             </button>
           </div>
           <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
-            {memberRoles.map((m) => (
+            {allMembers.map((m) => (
               <div key={m.id} className="flex items-center justify-between text-xs text-white/80 py-1">
                 <div className="flex items-center gap-2 truncate">
                   <RoleAvatar
@@ -210,7 +229,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
       )}
 
       {/* Chat Messages Stream */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32 relative z-10">
         {messages.length === 0 ? (
           <div className="text-center py-12 space-y-3 text-white/40">
             <div className="w-16 h-16 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto text-purple-300">
@@ -319,7 +338,7 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
         </div>
 
         {/* Input Text Box */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-4 pt-3 pb-6 bg-[#1a1a24] border-t border-white/5 shrink-0">
           <input
             type="text"
             value={inputText}
@@ -330,17 +349,17 @@ export const GroupChatView: React.FC<GroupChatViewProps> = ({
                 handleSend();
               }
             }}
-            placeholder={`发消息给群里 ${memberRoles.length} 位角色...`}
-            className="flex-1 bg-black/60 border border-purple-500/30 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-white/35 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/40 transition"
+            placeholder="对 群成员 说点什么..."
+            className="flex-1 bg-black/60 border border-purple-500/30 rounded-full px-5 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/40 transition"
           />
 
           <button
             type="button"
             onClick={handleSend}
             disabled={!inputText.trim() || isSending}
-            className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-600 text-white flex items-center justify-center shadow-lg shadow-purple-500/25 disabled:opacity-40 hover:scale-105 active:scale-95 transition cursor-pointer shrink-0"
+            className="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 text-white flex items-center justify-center shadow-lg shadow-purple-500/25 disabled:opacity-40 hover:scale-105 active:scale-95 transition cursor-pointer shrink-0 border border-white/10"
           >
-            <Send size={16} />
+            <Send size={20} className="ml-0.5" />
           </button>
         </div>
       </div>

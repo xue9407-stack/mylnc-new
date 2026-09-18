@@ -21,6 +21,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [avatar, setAvatar] = useState(userProfile.avatar || '😊');
   const [gender, setGender] = useState(userProfile.gender || '保密');
   const [bio, setBio] = useState(userProfile.bio || '');
+  const [backgroundImage, setBackgroundImage] = useState(userProfile.backgroundImage || '');
   
   const [showGenderModal, setShowGenderModal] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +55,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         onShowToast('图片文件大小请控制在 8MB 以内');
         return;
       }
-      onShowToast('背景图载入成功！点击保存生效 ✨');
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        setBackgroundImage(result);
+        onShowToast('背景图载入成功！点击保存生效 ✨');
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -70,6 +77,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       avatar,
       gender,
       bio,
+      backgroundImage,
     });
 
     onShowToast('✨ 资料保存成功！');
@@ -191,8 +199,15 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 flex items-center justify-between hover:bg-white/[0.01] cursor-pointer transition"
           >
             <span className="text-xs text-white/80 font-semibold">背景图</span>
-            <div className="flex items-center gap-1.5 text-white/40 text-xs">
-              <span>支持自定义</span>
+            <div className="flex items-center gap-2 text-white/40 text-xs">
+              {backgroundImage ? (
+                <div className="flex items-center gap-1.5">
+                  <img src={backgroundImage} className="w-5 h-5 rounded object-cover border border-white/10" />
+                  <span className="text-purple-300 font-bold">已设置</span>
+                </div>
+              ) : (
+                <span>支持自定义</span>
+              )}
               <span className="text-white/20 text-sm">›</span>
             </div>
             <input

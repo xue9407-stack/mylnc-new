@@ -48,6 +48,10 @@ import {
   Plus,
   Sparkles,
   Radio,
+  Clapperboard,
+  Shirt,
+  Award,
+  Gamepad2,
   Globe,
   Compass,
   Camera,
@@ -59,10 +63,10 @@ import {
   Briefcase,
   ShoppingBag,
   ClipboardList,
-  Award,
   Trophy,
   Play,
   Pause,
+  Lock,
 } from 'lucide-react';
 
 const CATEGORIES = ['全部', '霸总', '温柔', '邻家', '病娇', '御姐', '学长', '治愈', '高冷', '阳光'];
@@ -127,6 +131,8 @@ export default function App() {
     return localStorage.getItem('user_real_idcard') || '';
   });
   const [showRealNameAuthModal, setShowRealNameAuthModal] = useState(false);
+  const [showRankingModal, setShowRankingModal] = useState(false);
+  const [showTheaterModal, setShowTheaterModal] = useState(false);
   const [homeTopTab, setHomeTopTab] = useState<'recommend' | 'theater' | 'original' | 'game'>('recommend');
   const [hasUnreadMoments, setHasUnreadMoments] = useState<boolean>(() => {
     return localStorage.getItem('hasUnreadMoments') !== 'false';
@@ -569,7 +575,7 @@ export default function App() {
     return localStorage.getItem('daily_checked_in') === 'true';
   });
 
-  const [profileActiveTab, setProfileActiveTab] = useState<'attic' | 'matters' | 'showcase'>('attic');
+  const [profileActiveTab, setProfileActiveTab] = useState<'attic' | 'matters'>('attic');
   const [atticActiveSubTab, setAtticActiveSubTab] = useState<'roles' | 'stories' | 'theaters' | 'groupChats' | 'decorations'>('roles');
 
   const [isAdLoading, setIsAdLoading] = useState<boolean>(false);
@@ -665,6 +671,28 @@ export default function App() {
     } catch {}
     const defaultCount = Object.values(DEFAULT_THEATERS).reduce((acc, curr) => acc + curr.length, 0);
     return defaultCount + customCount;
+  }, []);
+
+  const customStoryCount = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('user_custom_storylines');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed.length;
+      }
+    } catch {}
+    return 0;
+  }, []);
+
+  const customTheaterCount = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('user_custom_theaters');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed.length;
+      }
+    } catch {}
+    return 0;
   }, []);
 
   // Modals & Tools
@@ -1311,6 +1339,35 @@ export default function App() {
             </div>
           </div>
 
+          {/* Discovery Sub-Menu Section */}
+          <div className="grid grid-cols-5 gap-2 px-5 pb-3 shrink-0">
+            {[
+              { icon: <Clapperboard size={18}/>, label: 'AI剧场', id: 'theaters' },
+              { icon: <Shirt size={18}/>, label: '装扮', id: 'outfits' },
+              { icon: <Award size={18}/>, label: '排行榜', id: 'ranking' },
+              { icon: <ShoppingBag size={18}/>, label: '集市', id: 'market' },
+              { icon: <Gamepad2 size={18}/>, label: '互动游戏', id: 'games' },
+            ].map((item, idx) => (
+              <button 
+                key={idx} 
+                onClick={() => {
+                  if (item.id === 'ranking') {
+                    // Logic to open ranking modal
+                    setShowRankingModal(true);
+                  } else if (item.id === 'theaters') {
+                    setShowTheaterModal(true);
+                  } else {
+                    showToast(`即将开启 ${item.label} 功能`);
+                  }
+                }}
+                className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] transition active:scale-95"
+              >
+                <div className="text-purple-300">{item.icon}</div>
+                <span className="text-[10px] font-bold text-white/80 whitespace-nowrap">{item.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Scrollable Main Content */}
           <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4 pb-28 no-scrollbar">
 
@@ -1530,6 +1587,7 @@ export default function App() {
               onTriggerAiCollision={handleTriggerAiCollision}
               onClearHistory={handleClearGroupHistory}
               onShowToast={showToast}
+              backgroundImage={userProfile.backgroundImage}
             />
           );
         })()
@@ -1779,21 +1837,28 @@ export default function App() {
 
       {/* 5. PROFILE PAGE */}
       {currentPage === 'profile' && (
-        <div id="page-profile" className="h-full overflow-y-auto pb-28 bg-[#0a0a0f] space-y-3.5">
+        <div id="page-profile" className="h-full overflow-y-auto pb-20 bg-[#0a0a0f] space-y-3.5">
           {/* Top Profile Card (Matching image layout with avatar on left, nickname + VIP badges, UID, bio, and dotted pills) */}
-          <div className="pt-6 pb-5 px-5 bg-gradient-to-b from-[#1b152b] via-[#120e1e] to-[#0a0a0f] border-b border-white/5 space-y-3">
+          {/* Top Profile Card (Matching image layout with avatar on left, nickname + VIP badges, UID, bio, and dotted pills) */}
+          <div className="pt-7 pb-6 px-5 bg-gradient-to-b from-[#1c142e] via-[#110c1c] to-[#0a0a0f] border-b border-white/[0.03] space-y-4 relative overflow-hidden">
+            {/* Decorative background radial glow */}
+            <div className="absolute top-[-80px] right-[-80px] w-48 h-48 rounded-full bg-purple-500/5 blur-3xl pointer-events-none" />
+            <div className="absolute top-[-40px] left-[-40px] w-36 h-36 rounded-full bg-pink-500/5 blur-2xl pointer-events-none" />
+
             {/* Header Main Row: Avatar + Info */}
-            <div className="flex items-start gap-3.5">
+            <div className="flex items-center gap-4 relative">
               {/* Left Avatar */}
               <div
                 onClick={() => setShowEditProfileModal(true)}
-                className="relative w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-500/30 via-pink-500/30 to-amber-500/20 border border-white/15 shadow-lg overflow-hidden shrink-0 cursor-pointer group hover:scale-105 transition flex items-center justify-center"
+                className="relative w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-500/40 via-pink-500/30 to-amber-500/20 p-[1px] shadow-xl overflow-hidden shrink-0 cursor-pointer group hover:scale-105 transition flex items-center justify-center"
               >
-                {userProfile.avatar && (userProfile.avatar.startsWith('http') || userProfile.avatar.startsWith('data:')) ? (
-                  <img src={userProfile.avatar} alt="avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-3xl">{userProfile.avatar || '😊'}</span>
-                )}
+                <div className="w-full h-full rounded-[14px] overflow-hidden bg-[#151124] flex items-center justify-center">
+                  {userProfile.avatar && (userProfile.avatar.startsWith('http') || userProfile.avatar.startsWith('data:')) ? (
+                    <img src={userProfile.avatar} alt="avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-3xl">{userProfile.avatar || '😊'}</span>
+                  )}
+                </div>
                 <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-pink-600 text-white flex items-center justify-center shadow-md border border-black/40 group-hover:scale-110 transition">
                   <Camera size={10} />
                 </div>
@@ -1801,12 +1866,29 @@ export default function App() {
 
               {/* Right User Meta */}
               <div className="flex-1 min-w-0 space-y-1.5 pt-0.5">
-                <h2
-                  onClick={() => setShowEditProfileModal(true)}
-                  className="text-base font-bold text-white truncate cursor-pointer hover:text-purple-300 transition"
-                >
-                  {userProfile.nickname || '小星星oAJICM08'}
-                </h2>
+                <div className="flex items-center gap-2 min-w-0">
+                  <h2
+                    onClick={() => setShowEditProfileModal(true)}
+                    className="text-base font-black text-white tracking-wide truncate cursor-pointer hover:text-purple-300 transition"
+                  >
+                    {userProfile.nickname || '小星星oAJICM08'}
+                  </h2>
+                  {userProfile.gender && userProfile.gender !== '保密' && (
+                    <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-extrabold flex items-center gap-0.5 border shrink-0 ${
+                      userProfile.gender === '男'
+                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                        : 'bg-pink-500/10 text-pink-400 border-pink-500/20'
+                    }`}>
+                      <span>{userProfile.gender === '男' ? '♂' : '♀'}</span>
+                      <span>{userProfile.gender}</span>
+                    </span>
+                  )}
+                  {(!userProfile.gender || userProfile.gender === '保密') && (
+                    <span className="px-1.5 py-0.5 rounded bg-white/5 text-white/40 border border-white/10 text-[8px] font-extrabold shrink-0">
+                      保密
+                    </span>
+                  )}
+                </div>
 
                 {/* VIP Membership Badges */}
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -1817,11 +1899,11 @@ export default function App() {
                       setVipInitialTier('silver');
                       setCurrentPage('vip');
                     }}
-                    className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-bold flex items-center gap-1 hover:bg-amber-500/30 active:scale-95 transition cursor-pointer"
+                    className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-[10px] font-extrabold flex items-center gap-1 hover:bg-amber-500/25 active:scale-95 transition cursor-pointer"
                   >
                     <Crown size={10} className="text-amber-400 fill-amber-400 shrink-0" />
                     <span>订阅会员</span>
-                    <span className="text-[8px] opacity-70">▶</span>
+                    <span className="text-[7px] opacity-70">▶</span>
                   </button>
                   <button
                     type="button"
@@ -1830,20 +1912,30 @@ export default function App() {
                       setVipInitialTier('platinum');
                       setCurrentPage('vip');
                     }}
-                    className="px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-400/40 text-pink-300 text-[10px] font-bold flex items-center gap-1 hover:bg-pink-500/30 active:scale-95 transition cursor-pointer"
+                    className="px-2.5 py-0.5 rounded-full bg-pink-500/15 border border-pink-400/30 text-pink-300 text-[10px] font-extrabold flex items-center gap-1 hover:bg-pink-500/25 active:scale-95 transition cursor-pointer"
                   >
                     <Sparkles size={10} className="text-pink-400 fill-pink-400 shrink-0" />
                     <span>技能会员</span>
-                    <span className="text-[8px] opacity-70">▶</span>
+                    <span className="text-[7px] opacity-70">▶</span>
                   </button>
                 </div>
               </div>
+
+              {/* Top-Right Settings Button */}
+              <button
+                type="button"
+                onClick={() => setCurrentPage('settings')}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 transition flex items-center justify-center text-white/70 hover:text-white border border-white/10 shrink-0 cursor-pointer self-start -mt-1"
+                title="设置"
+              >
+                <Settings size={15} />
+              </button>
             </div>
 
             {/* Bio Row */}
             <div
               onClick={() => setShowEditProfileModal(true)}
-              className="text-xs text-white/60 hover:text-white transition cursor-pointer pt-1"
+              className="text-xs text-white/60 hover:text-white transition cursor-pointer leading-relaxed pt-1"
             >
               {userProfile.bio || '点击填写你的简介吧'}
             </div>
@@ -1853,7 +1945,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowEditProfileModal(true)}
-                className="px-2.5 py-1 rounded-full border border-dashed border-white/20 hover:border-white/40 text-[11px] text-white/60 hover:text-white transition cursor-pointer flex items-center gap-1"
+                className="px-3 py-1 rounded-full border border-dashed border-white/15 hover:border-white/30 text-[10px] text-white/50 hover:text-white bg-white/[0.01] hover:bg-white/[0.03] transition cursor-pointer flex items-center gap-1 font-bold"
               >
                 <span>+ 补充个人资料</span>
               </button>
@@ -1861,34 +1953,36 @@ export default function App() {
           </div>
 
           {/* Stats Bar */}
-          <div className="mx-4 bg-white/5 border border-white/10 rounded-2xl p-3 flex divide-x divide-white/10 backdrop-blur-md">
+          <div className="mx-4 bg-gradient-to-r from-purple-950/20 to-slate-950/40 border border-white/5 rounded-2xl p-3 flex divide-x divide-white/[0.04] backdrop-blur-md shadow-lg">
             <div className="flex-1 text-center">
-              <div className="text-base font-bold text-purple-300">{roles.length}</div>
-              <div className="text-[11px] text-white/40 mt-0.5">我的角色</div>
+              <div className="text-base font-black bg-gradient-to-r from-purple-400 to-pink-300 bg-clip-text text-transparent">{roles.length}</div>
+              <div className="text-[10px] font-bold text-white/40 mt-0.5">我的角色</div>
             </div>
             <div className="flex-1 text-center">
-              <div className="text-base font-bold text-pink-300">36</div>
-              <div className="text-[11px] text-white/40 mt-0.5">对话天数</div>
+              <div className="text-base font-black bg-gradient-to-r from-pink-400 to-rose-300 bg-clip-text text-transparent">36</div>
+              <div className="text-[10px] font-bold text-white/40 mt-0.5">对话天数</div>
             </div>
             <div className="flex-1 text-center">
-              <div className="text-base font-bold text-emerald-300">1.2w</div>
-              <div className="text-[11px] text-white/40 mt-0.5">消息数</div>
+              <div className="text-base font-black bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">1.2w</div>
+              <div className="text-[10px] font-bold text-white/40 mt-0.5">消息数</div>
             </div>
           </div>
 
           {/* Consolidated Menu Section */}
-          <div className="mx-4 bg-white/[0.02] border border-white/5 rounded-2xl divide-y divide-white/5 overflow-hidden shadow-lg">
+          <div className="mx-4 bg-[#110e1c]/60 border border-white/5 rounded-2xl divide-y divide-white/[0.03] overflow-hidden shadow-xl backdrop-blur-md">
             {/* 我的关注 */}
             <div
               onClick={() => setCurrentPage('follows')}
-              className="flex items-center justify-between p-4 hover:bg-white/[0.02] cursor-pointer transition"
+              className="flex items-center justify-between p-3.5 hover:bg-white/[0.02] cursor-pointer transition"
             >
               <div className="flex items-center gap-3">
-                <Heart size={16} className="text-pink-400 fill-pink-400/10" />
-                <span className="text-xs font-semibold text-white/90">我的关注</span>
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-pink-500/15 to-rose-500/5 text-pink-400 border border-pink-500/10 flex items-center justify-center shrink-0 shadow-sm shadow-pink-500/5">
+                  <Heart size={15} className="fill-pink-400/10" />
+                </div>
+                <span className="text-xs font-bold text-white/90">我的关注</span>
               </div>
               <div className="flex items-center gap-1.5 text-white/40 text-xs">
-                <span className="px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-300 text-[10px] font-bold">
+                <span className="px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-300 text-[10px] font-extrabold border border-pink-500/10">
                   {followedRoles.length}
                 </span>
                 <ChevronRight size={14} className="text-white/25" />
@@ -1898,14 +1992,16 @@ export default function App() {
             {/* 会员中心 */}
             <div
               onClick={() => setCurrentPage('vip')}
-              className="flex items-center justify-between p-4 hover:bg-white/[0.02] cursor-pointer transition"
+              className="flex items-center justify-between p-3.5 hover:bg-white/[0.02] cursor-pointer transition"
             >
               <div className="flex items-center gap-3">
-                <Crown size={16} className="text-amber-400 fill-amber-400/10" />
-                <span className="text-xs font-semibold text-white/90">会员中心</span>
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500/15 to-yellow-500/5 text-amber-400 border border-amber-500/10 flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/5">
+                  <Crown size={15} className="fill-amber-400/10" />
+                </div>
+                <span className="text-xs font-bold text-white/90">会员中心</span>
               </div>
-              <div className="flex items-center gap-1 text-white/40 text-xs">
-                <span className="text-[10px] text-amber-400/90 font-bold bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">尊享特权</span>
+              <div className="flex items-center gap-1.5 text-white/40 text-xs">
+                <span className="text-[10px] text-amber-400 font-extrabold bg-amber-400/15 px-2 py-0.5 rounded-full border border-amber-400/20">尊享特权</span>
                 <ChevronRight size={14} className="text-white/25" />
               </div>
             </div>
@@ -1913,40 +2009,32 @@ export default function App() {
             {/* 我的钱包 */}
             <div
               onClick={() => setCurrentPage('wallet')}
-              className="flex items-center justify-between p-4 hover:bg-white/[0.02] cursor-pointer transition"
+              className="flex items-center justify-between p-3.5 hover:bg-white/[0.02] cursor-pointer transition"
             >
               <div className="flex items-center gap-3">
-                <Wallet size={16} className="text-emerald-400 fill-emerald-400/10" />
-                <span className="text-xs font-semibold text-white/90">我的钱包</span>
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500/15 to-teal-500/5 text-emerald-400 border border-emerald-500/10 flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/5">
+                  <Wallet size={15} className="fill-emerald-400/10" />
+                </div>
+                <span className="text-xs font-bold text-white/90">我的钱包</span>
               </div>
-              <div className="flex items-center gap-1 text-white/40 text-xs">
-                <span className="text-[10px] text-emerald-400 font-bold font-mono bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20">
+              <div className="flex items-center gap-1.5 text-white/40 text-xs">
+                <span className="text-[10px] text-emerald-400 font-extrabold font-mono bg-emerald-400/15 px-2 py-0.5 rounded-full border border-emerald-400/20">
                   ¥ {userProfile.money.toFixed(2)}
                 </span>
                 <ChevronRight size={14} className="text-white/25" />
               </div>
             </div>
 
-            {/* 设置 */}
-            <div
-              onClick={() => setCurrentPage('settings')}
-              className="flex items-center justify-between p-4 hover:bg-white/[0.02] cursor-pointer transition"
-            >
-              <div className="flex items-center gap-3">
-                <Settings size={16} className="text-gray-400" />
-                <span className="text-xs font-semibold text-white/90">设置</span>
-              </div>
-              <ChevronRight size={14} className="text-white/25" />
-            </div>
-
             {/* 帮助与反馈 */}
             <div
               onClick={() => setCurrentPage('help')}
-              className="flex items-center justify-between p-4 hover:bg-white/[0.02] cursor-pointer transition"
+              className="flex items-center justify-between p-3.5 hover:bg-white/[0.02] cursor-pointer transition"
             >
               <div className="flex items-center gap-3">
-                <HelpCircle size={16} className="text-blue-400" />
-                <span className="text-xs font-semibold text-white/90">帮助与反馈</span>
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-500/15 to-indigo-500/5 text-blue-400 border border-blue-500/10 flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/5">
+                  <HelpCircle size={15} />
+                </div>
+                <span className="text-xs font-bold text-white/90">帮助与反馈</span>
               </div>
               <ChevronRight size={14} className="text-white/25" />
             </div>
@@ -1954,13 +2042,302 @@ export default function App() {
             {/* 退出登录 */}
             <div
               onClick={handleLogout}
-              className="flex items-center justify-between p-4 hover:bg-red-500/5 cursor-pointer transition text-red-400/90"
+              className="flex items-center justify-between p-3.5 hover:bg-red-500/5 cursor-pointer transition text-red-400/90"
             >
               <div className="flex items-center gap-3">
-                <LogOut size={16} className="text-red-400" />
-                <span className="text-xs font-semibold">退出登录</span>
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-red-500/15 to-rose-500/5 text-red-400 border border-red-500/10 flex items-center justify-center shrink-0">
+                  <LogOut size={15} />
+                </div>
+                <span className="text-xs font-bold">退出登录</span>
               </div>
               <ChevronRight size={14} className="text-red-400/30" />
+            </div>
+          </div>
+
+          {/* Main Showcase Container (阁楼已重命名为事项) */}
+          <div className="mx-4 mt-4 bg-[#0c0a15]/50 border border-white/5 rounded-3xl p-4 space-y-3 shadow-xl mb-2">
+            {/* Section Header */}
+            <div className="flex items-center justify-between border-b border-white/5 pb-1 relative">
+              <div className="flex items-center gap-1.5 pb-2">
+                <div className="w-1 h-3.5 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full" />
+                <span className="text-sm font-extrabold text-white">事项</span>
+              </div>
+              <span className="text-[10px] text-white/30 font-semibold pb-2">创造与心动日常</span>
+            </div>
+
+            <div className="space-y-3">
+              {/* Secondary Horizontal Capsule Sub-tabs */}
+              <div className="flex items-center gap-2 overflow-x-auto -mx-4 px-4 pb-1.5 no-scrollbar shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setAtticActiveSubTab('roles')}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-black transition cursor-pointer whitespace-nowrap ${
+                    atticActiveSubTab === 'roles'
+                      ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                      : 'bg-white/[0.03] text-white/50 border border-transparent hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <span>角色 {roles.filter(r => r.id.startsWith('custom_') || r.isCustom).length}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAtticActiveSubTab('stories');
+                    showToast('即将开启 故事 功能');
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-black transition cursor-pointer whitespace-nowrap ${
+                    atticActiveSubTab === 'stories'
+                      ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                      : 'bg-white/[0.03] text-white/50 border border-transparent hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <span>故事 0</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAtticActiveSubTab('theaters');
+                    showToast('即将开启 剧场 功能');
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-black transition cursor-pointer whitespace-nowrap ${
+                    atticActiveSubTab === 'theaters'
+                      ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                      : 'bg-white/[0.03] text-white/50 border border-transparent hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <span>剧场 0</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAtticActiveSubTab('groupChats')}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-black transition cursor-pointer whitespace-nowrap ${
+                    atticActiveSubTab === 'groupChats'
+                      ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                      : 'bg-white/[0.03] text-white/50 border border-transparent hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <span>群聊 {groupChats.length}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAtticActiveSubTab('decorations');
+                    showToast('即将开启 装扮 功能');
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-[11px] font-black transition cursor-pointer whitespace-nowrap ${
+                    atticActiveSubTab === 'decorations'
+                      ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                      : 'bg-white/[0.03] text-white/50 border border-transparent hover:bg-white/[0.06]'
+                  }`}
+                >
+                  <span>服装装饰 0</span>
+                </button>
+              </div>
+
+              {/* Subtab Content Area */}
+              <div className="pt-1 min-h-[100px] flex flex-col justify-center">
+                {/* Subtab: 角色 */}
+                {atticActiveSubTab === 'roles' && (
+                  roles.filter(r => r.id.startsWith('custom_') || r.isCustom).length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {roles.filter(r => r.id.startsWith('custom_') || r.isCustom).map((role) => (
+                        <div
+                          key={role.id}
+                          className="bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 rounded-2xl p-3 flex flex-col justify-between transition gap-2"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-xl overflow-hidden shrink-0">
+                              {role.avatarUrl ? (
+                                <img src={role.avatarUrl} alt={role.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span>{role.avatar || '🤖'}</span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="text-xs font-bold text-white truncate">{role.name}</h4>
+                              <p className="text-[9px] text-white/40 truncate">{role.title}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 pt-1.5 border-t border-white/5 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => startChatWithRole(role)}
+                              className="flex-1 py-1 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-[10px] text-purple-200 font-extrabold transition flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <MessageSquare size={10} />
+                              <span>对话</span>
+                            </button>
+                            {handleDeleteCustomRole && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCustomRole(role.id)}
+                                className="p-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition cursor-pointer"
+                                title="删除角色"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {/* Quick Add Card */}
+                      <div
+                        onClick={() => setCurrentPage('creator')}
+                        className="bg-white/[0.01] hover:bg-white/[0.03] border border-dashed border-white/10 hover:border-white/20 rounded-2xl p-3 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition min-h-[92px]"
+                      >
+                        <Plus size={18} className="text-white/40" />
+                        <span className="text-[10px] text-white/50 font-extrabold">创作新角色</span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Empty State with Creative Button */
+                    <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+                      <div className="relative w-16 h-16 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-purple-500/10 rounded-full blur-xl animate-pulse" />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-500 to-pink-500 border border-purple-400 shadow-lg flex items-center justify-center text-white z-10">
+                          <Sparkles size={18} />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs text-white/70 font-bold">尚未创作任何角色</p>
+                        <p className="text-[10px] text-white/40 max-w-[200px]">孕育您的心动 AI，开启专属宇宙</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage('creator')}
+                        className="px-4 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-xs font-black text-white shadow-md hover:scale-102 active:scale-98 transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <Plus size={12} />
+                        <span>去创作专属角色</span>
+                      </button>
+                    </div>
+                  )
+                )}
+
+                {/* Subtab: 故事 */}
+                {atticActiveSubTab === 'stories' && (
+                  <div className="flex flex-col items-center justify-center py-6 text-center space-y-2 w-full bg-white/[0.01] border border-dashed border-white/5 rounded-2xl min-h-[140px]">
+                    <div className="relative w-12 h-12 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-purple-500/10 rounded-full blur-xl" />
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-500/20 to-pink-500/10 border border-purple-500/20 shadow-lg flex items-center justify-center text-purple-300 z-10">
+                        <Lock size={14} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-white/80 font-bold flex items-center gap-1 justify-center">
+                        <span>故事功能</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-extrabold border border-purple-500/10">即将开启</span>
+                      </p>
+                      <p className="text-[9px] text-white/40 max-w-[200px] mx-auto">专属心动日常故事正在精心谱写中，敬请期待</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Subtab: 剧场 */}
+                {atticActiveSubTab === 'theaters' && (
+                  <div className="flex flex-col items-center justify-center py-6 text-center space-y-2 w-full bg-white/[0.01] border border-dashed border-white/5 rounded-2xl min-h-[140px]">
+                    <div className="relative w-12 h-12 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-purple-500/10 rounded-full blur-xl" />
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-500/20 to-pink-500/10 border border-purple-500/20 shadow-lg flex items-center justify-center text-purple-300 z-10">
+                        <Lock size={14} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-white/80 font-bold flex items-center gap-1 justify-center">
+                        <span>剧场功能</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-extrabold border border-purple-500/10">即将开启</span>
+                      </p>
+                      <p className="text-[9px] text-white/40 max-w-[200px] mx-auto">沉浸式心动视频与语音剧场正在精心搭建中，敬请期待</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Subtab: 群聊 */}
+                {atticActiveSubTab === 'groupChats' && (
+                  groupChats.length > 0 ? (
+                    <div className="space-y-2 max-h-[160px] overflow-y-auto no-scrollbar">
+                      {groupChats.map((group) => (
+                        <div
+                          key={group.id}
+                          onClick={() => {
+                            setActiveGroupChatId(group.id);
+                            setCurrentPage('messages');
+                          }}
+                          className="bg-white/[0.03] hover:bg-white/[0.06] border border-white/5 rounded-2xl p-3 flex items-center justify-between transition cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-600 flex items-center justify-center text-white font-black text-sm shrink-0 shadow-lg relative">
+                              💬
+                              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 border-2 border-[#0c0a15] rounded-full animate-pulse" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                  <h4 className="text-xs font-bold text-white truncate">{group.name}</h4>
+                                  <span className="text-[8px] px-1 rounded bg-green-500/10 text-green-400 font-extrabold border border-green-500/10">活跃</span>
+                              </div>
+                              <p className="text-[10px] text-white/40 truncate mt-0.5">{group.topic || '暂无群介绍'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[10px] text-white/30 font-bold">{(group.memberRoleIds?.length || 0) + 1}人派对</span>
+                            <ChevronRight size={14} className="text-white/20" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-6 text-center space-y-3">
+                      <div className="relative w-16 h-16 flex items-center justify-center">
+                        <div className="absolute inset-0 bg-blue-500/5 rounded-full blur-xl animate-pulse" />
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-500 border border-blue-400 shadow-md flex items-center justify-center text-white z-10">
+                          <MessageSquare size={16} />
+                        </div>
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs text-white/70 font-bold">尚未加入任何群聊</p>
+                        <p className="text-[10px] text-white/35">去发起属于你们的甜蜜多人派对吧</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const customRolesList = roles.filter(r => r.id.startsWith('custom_') || r.isCustom);
+                          if (customRolesList.length >= 2) {
+                            setShowCreateGroupModal(true);
+                          } else {
+                            showToast('需要至少创作 2 个角色才能发起群聊派对哦！');
+                          }
+                        }}
+                        className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-[10px] text-white font-extrabold shadow transition hover:scale-102 active:scale-98 cursor-pointer"
+                      >
+                        创建群聊派对
+                      </button>
+                    </div>
+                  )
+                )}
+
+                {/* Subtab: 服装装饰 */}
+                {atticActiveSubTab === 'decorations' && (
+                  <div className="flex flex-col items-center justify-center py-6 text-center space-y-2 w-full bg-white/[0.01] border border-dashed border-white/5 rounded-2xl min-h-[140px]">
+                    <div className="relative w-12 h-12 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-purple-500/10 rounded-full blur-xl" />
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-500/20 to-pink-500/10 border border-purple-500/20 shadow-lg flex items-center justify-center text-purple-300 z-10">
+                        <Lock size={14} />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-white/80 font-bold flex items-center gap-1 justify-center">
+                        <span>服装装饰</span>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-extrabold border border-purple-500/10">即将开启</span>
+                      </p>
+                      <p className="text-[9px] text-white/40 max-w-[200px] mx-auto">心动角色的精美服饰与专属饰品正在精心裁剪中，敬请期待</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -2272,11 +2649,12 @@ export default function App() {
           onChatInteraction={() => handleChatIntimacy(activeRole.id)}
           onDeleteMessage={handleDeleteMessage}
           onRegenerateMessage={handleRegenerateMessage}
+          backgroundImage={userProfile.backgroundImage}
         />
       )}
 
-      {/* BOTTOM TAB BAR (Hidden in Chat and Login) */}
-      {currentPage !== 'chat' && currentPage !== 'login' && (
+      {/* BOTTOM TAB BAR (Hidden in Chat, Group Chat, and Login) */}
+      {currentPage !== 'chat' && currentPage !== 'login' && !activeGroupChatId && (
         <nav
           id="app-bottom-tab-bar"
           className="absolute bottom-0 left-0 right-0 h-16 bg-[#0a0a0f]/95 backdrop-blur-2xl border-t border-white/10 flex items-center justify-around px-4 z-40"
@@ -2437,6 +2815,76 @@ export default function App() {
           }}
           onShowToast={showToast}
         />
+      )}
+
+      {showRankingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setShowRankingModal(false)}>
+          <div className="bg-[#1a1a24] border border-white/10 rounded-3xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-white">羁绊等级排行榜</h3>
+              <button onClick={() => setShowRankingModal(false)} className="text-white/50 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {[...roles]
+                .sort((a, b) => (intimacies[b.id] || 0) - (intimacies[a.id] || 0))
+                .slice(0, 10)
+                .map((role, idx) => (
+                  <div key={role.id} className="flex items-center gap-3">
+                    <span className={`w-6 text-center font-black ${idx < 3 ? 'text-amber-400' : 'text-white/40'}`}>
+                      {idx + 1}
+                    </span>
+                    <RoleAvatar
+                      name={role.name}
+                      avatarUrl={role.avatarUrl}
+                      emoji={role.emoji}
+                      coverClass={role.cover}
+                      size="sm"
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm font-bold text-white">{role.name}</div>
+                      <div className="text-[10px] text-white/50">羁绊值: {intimacies[role.id] || 0}</div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTheaterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={() => setShowTheaterModal(false)}>
+          <div className="bg-[#1a1a24] border border-white/10 rounded-3xl w-full max-w-sm p-6 shadow-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6 shrink-0">
+              <h3 className="text-lg font-bold text-white">AI 剧场</h3>
+              <button onClick={() => setShowTheaterModal(false)} className="text-white/50 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="space-y-4 overflow-y-auto pr-1 no-scrollbar flex-1">
+              {Object.entries(DEFAULT_THEATERS).map(([roleId, theaters]) => {
+                const role = roles.find(r => r.id === roleId);
+                return theaters.map(th => (
+                  <div key={th.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] transition">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[10px] text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded font-bold">
+                        {role?.name || '未知角色'}
+                      </span>
+                      <h4 className="text-xs font-bold text-white">{th.title}</h4>
+                    </div>
+                    <p className="text-[10px] text-white/50 mb-3">{th.desc}</p>
+                    <button 
+                      onClick={() => {
+                        setShowTheaterModal(false);
+                        showToast(`进入剧场：${th.title}`);
+                      }}
+                      className="w-full py-2 rounded-lg bg-purple-600/20 text-purple-200 text-xs font-bold hover:bg-purple-600/40 transition"
+                    >
+                      进入剧场
+                    </button>
+                  </div>
+                ));
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </PhoneFrame>
   );
