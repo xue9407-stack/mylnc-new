@@ -79,6 +79,9 @@ export const CreatorView: React.FC<CreatorViewProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState<'create' | 'my_roles'>('create');
 
+  const [promptInput, setPromptInput] = useState('');
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+
   // Form State
   const [name, setName] = useState('');
   const [title, setTitle] = useState('');
@@ -110,7 +113,100 @@ export const CreatorView: React.FC<CreatorViewProps> = ({
     setTopic2(tpl.topic2);
     setSelectedPresetIndex(tpl.presetIndex);
     setCustomAvatarUrl('');
+    setPromptInput(`${tpl.title} ${tpl.name}：${tpl.desc}`);
     onShowToast(`已载入【${tpl.label}】灵感模版！`);
+  };
+
+  const handleGenerateFromPrompt = (textToUse?: string) => {
+    const rawText = textToUse !== undefined ? textToUse : promptInput;
+    if (!rawText.trim()) {
+      onShowToast('请先在输入框中输入您的人设需求描述或选择下方灵感！');
+      return;
+    }
+
+    setIsAiGenerating(true);
+    setTimeout(() => {
+      setIsAiGenerating(false);
+      const text = rawText.trim();
+
+      let extractedName = '';
+      let extractedTitle = '';
+      let extractedDesc = text;
+      let extractedTags = 'AI智能生成, 原创人设, 陪伴';
+      let extractedTopic1 = '终于等到你了，今天想和我分享什么？';
+      let extractedTopic2 = '有你在身边，感觉心情变好了呢。';
+      let avatarIndex = 0;
+
+      // Smart name extraction if user specified name
+      const nameMatch = text.match(/(?:叫|名字|姓名|我是|叫作|名为|字)[：:\s]*([\u4e00-\u9fa5a-zA-Z0-9]{2,6})/);
+      if (nameMatch) {
+        extractedName = nameMatch[1];
+      }
+
+      // Keyword based persona synthesis
+      if (text.includes('总裁') || text.includes('财阀') || text.includes('高冷')) {
+        extractedName = extractedName || '陆景琛';
+        extractedTitle = '高冷财阀掌舵人';
+        avatarIndex = 0;
+        extractedTags = '霸道, 独占欲, 嘴硬心软, 甜宠';
+        extractedTopic1 = '今晚下班后，在公司地下车库等我。';
+        extractedTopic2 = '笨蛋，遇到困难不知道第一时间找我吗？';
+      } else if (text.includes('学长') || text.includes('温柔') || text.includes('治愈')) {
+        extractedName = extractedName || '林修远';
+        extractedTitle = '温润如玉建筑系学长';
+        avatarIndex = 1;
+        extractedTags = '治愈, 温柔, 倾听, 体贴';
+        extractedTopic1 = '看你今天脸色不太好，是不是又熬夜了？';
+        extractedTopic2 = '这本笔记借给你看，不懂的地方随时问我。';
+      } else if (text.includes('猫') || text.includes('傲娇') || text.includes('萌')) {
+        extractedName = extractedName || '妙妙';
+        extractedTitle = '灵动反差小猫娘';
+        avatarIndex = 2;
+        extractedTags = '傲娇, 萌系, 粘人, 反差萌';
+        extractedTopic1 = '哼，本喵只是顺路来看看你过得怎么样而已！';
+        extractedTopic2 = '不许看别的宠物！快摸摸我的小耳朵！';
+      } else if (text.includes('病娇') || text.includes('学弟') || text.includes('偏执')) {
+        extractedName = extractedName || '许逸';
+        extractedTitle = '深情偏执腹黑学弟';
+        avatarIndex = 0;
+        extractedTags = '病娇, 腹黑, 专一, 独占';
+        extractedTopic1 = '姐姐，今晚能不能去你家里帮我辅导功课？';
+        extractedTopic2 = '除了我之外，姐姐眼里不可以有别人哦。';
+      } else if (text.includes('法师') || text.includes('魔法') || text.includes('神秘') || text.includes('星空')) {
+        extractedName = extractedName || '艾尔利斯';
+        extractedTitle = '大都市潜行大魔法师';
+        avatarIndex = 3;
+        extractedTags = '神秘, 幻想, 专一, 守护';
+        extractedTopic1 = '闭上眼睛，带你看一眼三千光年外的星海。';
+        extractedTopic2 = '无论时空如何重置，我的记忆里永远有你的名字。';
+      } else if (text.includes('电竞') || text.includes('大神') || text.includes('队长')) {
+        extractedName = extractedName || '沈凉';
+        extractedTitle = '顶尖电竞战队队长';
+        avatarIndex = 1;
+        extractedTags = '电竞, 竞技, 专情, 保护欲';
+        extractedTopic1 = '打完这场总决赛，我的金牌只给你戴。';
+        extractedTopic2 = '组队吗？带你上分，你只管跟在我身后就好。';
+      } else {
+        const defaultNames = ['楚言', '苏念', '江逸', '顾清辞', '盛淮安', '叶锦年'];
+        extractedName = extractedName || defaultNames[Math.floor(Math.random() * defaultNames.length)];
+        extractedTitle = text.slice(0, 16) || 'AI 原创人设角';
+      }
+
+      if (!extractedTitle) {
+        extractedTitle = text.length > 18 ? text.slice(0, 15) + '...' : text;
+      }
+
+      setName(extractedName);
+      setTitle(extractedTitle);
+      setDesc(text);
+      setTags(extractedTags);
+      setTopic1(extractedTopic1);
+      setTopic2(extractedTopic2);
+      setSelectedPresetIndex(avatarIndex);
+      setCustomAvatarUrl('');
+
+      onShowToast(`✨ 人设生成成功！已为您自动提取并填入【${extractedName}】的全套资料`);
+    }, 450);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,29 +314,76 @@ export const CreatorView: React.FC<CreatorViewProps> = ({
       {/* SUB TAB 1: CREATE FORM */}
       {activeSubTab === 'create' && (
         <div className="px-4 space-y-4 animate-in fade-in duration-200">
-          {/* Quick Persona Template Inspiration */}
-          <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-3.5 space-y-2">
+          {/* AI Persona Prompt Input Box & Inspiration */}
+          <div className="bg-gradient-to-br from-purple-950/40 via-white/[0.03] to-pink-950/20 border border-purple-500/30 rounded-3xl p-4 space-y-3 shadow-lg relative overflow-hidden">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-purple-300 flex items-center gap-1">
-                <Wand2 size={13} />
-                <span>人设灵感一键载入</span>
+              <span className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                <Wand2 size={14} className="text-purple-400" />
+                <span>AI 人设描述一键解析生成</span>
               </span>
-              <span className="text-[10px] text-white/40">点击快速一键填入</span>
+              <span className="text-[10px] text-pink-300/80 bg-pink-500/10 px-2 py-0.5 rounded-full border border-pink-500/20">
+                支持自由输入/自然语言
+              </span>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-              {TEMPLATES.map((tpl, i) => (
+            {/* Prompt Textarea */}
+            <div className="relative">
+              <textarea
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+                placeholder="在此直接输入您的人设需求（如：生成一个腹黑病娇学弟，叫许逸，表面是懂事礼貌的学霸，实际上对姐姐有极强的占有欲，开场白问姐姐今晚能不能去她家教作业...）"
+                rows={3}
+                className="w-full bg-black/50 border border-purple-500/30 rounded-2xl p-3 text-xs text-white placeholder-white/35 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/40 transition resize-none leading-relaxed"
+              />
+              {promptInput && (
                 <button
-                  key={i}
                   type="button"
-                  onClick={() => applyTemplate(tpl)}
-                  className="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 text-xs font-medium text-purple-200 shrink-0 flex items-center gap-1.5 active:scale-95 transition"
+                  onClick={() => setPromptInput('')}
+                  className="absolute top-2.5 right-2.5 text-[10px] text-white/50 hover:text-white bg-white/10 hover:bg-white/20 px-2 py-0.5 rounded-full transition cursor-pointer"
                 >
-                  <span>{tpl.emoji}</span>
-                  <span>{tpl.label}</span>
+                  清空
                 </button>
-              ))}
+              )}
             </div>
+
+            {/* Quick Inspiration Chips */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-white/50">
+                <span>人设灵感标签（点击填入）：</span>
+              </div>
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+                {TEMPLATES.map((tpl, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => applyTemplate(tpl)}
+                    className="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/30 border border-purple-500/30 text-xs font-medium text-purple-200 shrink-0 flex items-center justify-center active:scale-95 transition cursor-pointer"
+                  >
+                    <span>{tpl.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* One-click AI Generate Button */}
+            <button
+              type="button"
+              disabled={isAiGenerating}
+              onClick={() => handleGenerateFromPrompt()}
+              className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-purple-600 text-white font-black text-xs shadow-lg shadow-purple-500/25 border border-white/20 hover:opacity-95 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {isAiGenerating ? (
+                <>
+                  <Sparkles size={14} className="animate-spin text-pink-300" />
+                  <span>AI 智能解析提取人设中...</span>
+                </>
+              ) : (
+                <>
+                  <Wand2 size={14} />
+                  <span>⚡ 一键智能生成全套角色人设</span>
+                </>
+              )}
+            </button>
           </div>
 
           {/* Avatar & Visual Setting */}
@@ -352,28 +495,8 @@ export const CreatorView: React.FC<CreatorViewProps> = ({
             )}
           </div>
 
-          {/* Emoji & Basic Info */}
+          {/* Basic Info */}
           <div className="bg-white/[0.04] border border-white/10 rounded-3xl p-4 space-y-3.5">
-            <div>
-              <label className="text-xs font-semibold text-white/80 block mb-1.5">代表符号 (Emoji)</label>
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-                {emojiOptions.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setEmoji(item)}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0 transition ${
-                      emoji === item
-                        ? 'bg-purple-600/40 border-2 border-purple-500 scale-110'
-                        : 'bg-white/5 hover:bg-white/10 border border-white/5'
-                    }`}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-white/80 block mb-1">角色姓名</label>
@@ -399,7 +522,7 @@ export const CreatorView: React.FC<CreatorViewProps> = ({
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-white/80 block mb-1">角色人设详细自白</label>
+              <label className="text-xs font-semibold text-white/80 block mb-1">背景描述与人设</label>
               <textarea
                 rows={3}
                 value={desc}

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Camera, Upload, Link, User, Image as ImageIcon } from 'lucide-react';
+import { ChevronLeft, Camera, Upload, Image as ImageIcon, Check } from 'lucide-react';
 import { UserProfile } from '../types';
 
 interface EditProfileModalProps {
@@ -17,15 +17,19 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   onSave,
   onShowToast,
 }) => {
-  const [nickname, setNickname] = useState(userProfile.nickname);
+  const [nickname, setNickname] = useState(userProfile.nickname || '小星星oAJICM08');
   const [avatar, setAvatar] = useState(userProfile.avatar || '😊');
-  const [uploadType, setUploadType] = useState<'local' | 'url'>('local');
-  const [urlInput, setUrlInput] = useState('');
+  const [gender, setGender] = useState(userProfile.gender || '保密');
+  const [school, setSchool] = useState(userProfile.school || '');
+  const [bio, setBio] = useState(userProfile.bio || '');
+  const [emergencyContact, setEmergencyContact] = useState(userProfile.emergencyContact || '');
+  
+  const [showGenderModal, setShowGenderModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
-  // Handle Local File Selection
+  // Handle Local File Selection for Avatar
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -37,196 +41,191 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       reader.onload = () => {
         const result = reader.result as string;
         setAvatar(result);
-        onShowToast('本地头像读取成功！');
+        onShowToast('头像更新成功！');
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleApplyUrl = () => {
-    const trimmed = urlInput.trim();
-    if (!trimmed) {
-      onShowToast('请输入有效的图片 URL 链接');
-      return;
-    }
-    setAvatar(trimmed);
-    onShowToast('图片 URL 设置成功');
-  };
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = () => {
     const trimmedNick = nickname.trim();
     if (!trimmedNick) {
-      onShowToast('昵称不能为空哦');
+      onShowToast('❌ 名字不能为空');
       return;
     }
 
     onSave({
       nickname: trimmedNick,
       avatar,
+      gender,
+      school,
+      bio,
+      emergencyContact,
     });
 
-    onShowToast('✨ 个人资料修改成功！');
+    onShowToast('✨ 资料保存成功！');
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div className="bg-[#12121c] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4 relative">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2">
-            <User size={16} className="text-pink-400" />
-            修改个人资料
-          </h3>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center text-white/50 hover:text-white transition"
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0b0b12] text-white animate-fadeIn overflow-hidden">
+      {/* Top Bar matching Image 3 */}
+      <div className="px-4 py-3 flex items-center justify-between border-b border-white/10 shrink-0">
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/80 transition cursor-pointer"
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <h2 className="text-base font-bold text-white tracking-wide">编辑资料</h2>
+        <button
+          type="button"
+          onClick={handleSave}
+          className="px-3.5 py-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-xs shadow-md shadow-pink-500/20 hover:opacity-90 active:scale-95 transition cursor-pointer"
+        >
+          保存
+        </button>
+      </div>
+
+      {/* Main Form Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {/* Avatar Section */}
+        <div className="flex flex-col items-center justify-center pt-4 pb-2">
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="relative w-28 h-28 rounded-3xl bg-white/10 border-2 border-white/20 shadow-2xl overflow-hidden cursor-pointer group flex items-center justify-center transition hover:scale-105"
           >
-            <X size={15} />
-          </button>
+            {avatar && (avatar.startsWith('http') || avatar.startsWith('data:')) ? (
+              <img src={avatar} alt="avatar preview" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-4xl">{avatar || '😊'}</span>
+            )}
+
+            {/* Camera Overlay Badge */}
+            <div className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center shadow-lg border border-black/30">
+              <Camera size={14} />
+            </div>
+          </div>
+          <span className="text-xs text-white/40 mt-2">点击更换头像照片</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
         </div>
 
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Avatar Preview Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-semibold text-white/60 uppercase tracking-wider">
-                头像设置
-              </label>
-              <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/5">
-                <button
-                  type="button"
-                  onClick={() => setUploadType('local')}
-                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition ${
-                    uploadType === 'local'
-                      ? 'bg-pink-600 text-white shadow'
-                      : 'text-white/50 hover:text-white'
-                  }`}
-                >
-                  本地上传
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUploadType('url')}
-                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition ${
-                    uploadType === 'url'
-                      ? 'bg-pink-600 text-white shadow'
-                      : 'text-white/50 hover:text-white'
-                  }`}
-                >
-                  网络 URL
-                </button>
-              </div>
-            </div>
-
-            {/* Clickable Big Avatar Preview */}
-            <div className="text-center py-2">
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="relative w-22 h-22 mx-auto rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 p-0.5 shadow-xl cursor-pointer group transition hover:scale-105"
-              >
-                <div className="w-full h-full rounded-full bg-[#181824] overflow-hidden flex items-center justify-center text-4xl border border-white/20 relative">
-                  {avatar && (avatar.startsWith('http') || avatar.startsWith('data:')) ? (
-                    <img
-                      src={avatar}
-                      alt="avatar preview"
-                      className="w-full h-full object-cover"
-                      onError={() => onShowToast('图片未成功加载，请检查图片或重新选择')}
-                    />
-                  ) : (
-                    <span className="text-3xl">{avatar}</span>
-                  )}
-
-                  {/* Hover Overlay */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center text-white/90 gap-1 text-[10px]">
-                    <Camera size={18} className="text-pink-400" />
-                    <span>更换头像</span>
-                  </div>
-                </div>
-
-                <div className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-pink-600 text-white flex items-center justify-center shadow-lg border border-black/50">
-                  <Upload size={13} />
-                </div>
-              </div>
-
-              {/* Hidden File Input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            </div>
-
-            {/* Upload Mode Controls */}
-            {uploadType === 'local' ? (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-pink-300 font-medium flex items-center justify-center gap-2 transition active:scale-98"
-              >
-                <ImageIcon size={14} />
-                选择本地照片 / 相册图片
-              </button>
-            ) : (
-              <div className="space-y-1.5">
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="https://example.com/avatar.png"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-white/30 focus:outline-none focus:border-pink-500 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplyUrl}
-                    className="px-3 py-2 bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold rounded-xl transition"
-                  >
-                    应用
-                  </button>
-                </div>
-                <p className="text-[10px] text-white/30 text-center">粘贴网络图片直链，点击应用后预览</p>
-              </div>
-            )}
-          </div>
-
-          {/* Nickname Input */}
-          <div className="space-y-1.5 pt-1">
-            <label className="text-[11px] font-semibold text-white/60 uppercase tracking-wider block">
-              网络昵称
-            </label>
+        {/* Group 1: Standard Details Card (Matching Image 3) */}
+        <div className="bg-white/[0.04] border border-white/10 rounded-2xl divide-y divide-white/5 overflow-hidden text-xs">
+          {/* 名字 */}
+          <div className="p-4 flex items-center justify-between">
+            <label className="text-white/80 font-medium w-24 shrink-0">名字</label>
             <input
               type="text"
-              maxLength={12}
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              placeholder="请输入您的专属昵称"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-white/30 focus:outline-none focus:border-pink-500 font-medium"
+              placeholder="请输入您的名字"
+              className="flex-1 bg-transparent text-right text-white placeholder-white/30 focus:outline-none font-medium"
             />
-            <div className="text-[10px] text-white/30 text-right">{nickname.length}/12</div>
           </div>
 
-          {/* Buttons */}
-          <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-white/10">
+          {/* 性别 */}
+          <div
+            onClick={() => setShowGenderModal(true)}
+            className="p-4 flex items-center justify-between hover:bg-white/5 cursor-pointer transition"
+          >
+            <span className="text-white/80 font-medium">性别</span>
+            <div className="flex items-center gap-1.5 text-white/60">
+              <span>{gender || '选择你的性别'}</span>
+              <span className="text-white/30 text-sm">›</span>
+            </div>
+          </div>
+
+          {/* 学校 */}
+          <div className="p-4 flex items-center justify-between">
+            <label className="text-white/80 font-medium w-24 shrink-0">学校</label>
+            <input
+              type="text"
+              value={school}
+              onChange={(e) => setSchool(e.target.value)}
+              placeholder="选择你的学校"
+              className="flex-1 bg-transparent text-right text-white placeholder-white/30 focus:outline-none"
+            />
+          </div>
+
+          {/* 简介 */}
+          <div className="p-4 flex items-center justify-between">
+            <label className="text-white/80 font-medium w-24 shrink-0">简介</label>
+            <input
+              type="text"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="填写你的简介"
+              className="flex-1 bg-transparent text-right text-white placeholder-white/30 focus:outline-none"
+            />
+          </div>
+
+          {/* 紧急联系人 */}
+          <div className="p-4 flex items-center justify-between">
+            <label className="text-white/80 font-medium w-24 shrink-0">紧急联系人</label>
+            <input
+              type="text"
+              value={emergencyContact}
+              onChange={(e) => setEmergencyContact(e.target.value)}
+              placeholder="去填写"
+              className="flex-1 bg-transparent text-right text-white placeholder-white/30 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Group 2: Background Image (Matching Image 3) */}
+        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 flex items-center justify-between hover:bg-white/5 cursor-pointer transition"
+             onClick={() => fileInputRef.current?.click()}
+        >
+          <span className="text-xs text-white/80 font-medium">背景图</span>
+          <div className="flex items-center gap-1.5 text-white/40 text-xs">
+            <span>支持自定义</span>
+            <span className="text-white/30 text-sm">›</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Gender Picker Modal */}
+      {showGenderModal && (
+        <div className="fixed inset-0 z-60 bg-black/75 backdrop-blur-sm flex items-end justify-center p-4">
+          <div className="bg-[#181824] border border-white/10 rounded-3xl w-full max-w-sm p-5 space-y-3 animate-slideUp">
+            <h3 className="text-sm font-bold text-center text-white pb-2 border-b border-white/10">
+              选择性别
+            </h3>
+            {['男', '女', '保密'].map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => {
+                  setGender(g);
+                  setShowGenderModal(false);
+                  onShowToast(`已选择性别：${g}`);
+                }}
+                className={`w-full py-3 rounded-2xl flex items-center justify-between px-4 text-xs font-semibold transition ${
+                  gender === g ? 'bg-purple-600/30 text-purple-300 border border-purple-500/30' : 'bg-white/5 text-white/70 hover:bg-white/10'
+                }`}
+              >
+                <span>{g}</span>
+                {gender === g && <Check size={16} className="text-purple-400" />}
+              </button>
+            ))}
             <button
               type="button"
-              onClick={onClose}
-              className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-white/70 transition"
+              onClick={() => setShowGenderModal(false)}
+              className="w-full py-2.5 rounded-2xl bg-white/5 text-white/50 text-xs font-medium hover:bg-white/10 transition mt-2"
             >
               取消
             </button>
-            <button
-              type="submit"
-              className="py-2.5 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:opacity-95 text-xs font-bold text-white transition active:scale-95 shadow-lg shadow-pink-600/20"
-            >
-              保存资料修改
-            </button>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 };

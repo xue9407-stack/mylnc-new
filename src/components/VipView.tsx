@@ -36,6 +36,7 @@ interface VipViewProps {
   onShowToast: (msg: string) => void;
   onRechargeModal: () => void;
   initialTier?: 'silver' | 'platinum';
+  onUpgradeVipTier?: (tier: 'silver' | 'platinum') => void;
 }
 
 export const VipView: React.FC<VipViewProps> = ({
@@ -44,6 +45,7 @@ export const VipView: React.FC<VipViewProps> = ({
   onShowToast,
   onRechargeModal,
   initialTier = 'silver',
+  onUpgradeVipTier,
 }) => {
   // VIP Level: 'silver' | 'platinum'
   const [activeTier, setActiveTier] = useState<'silver' | 'platinum'>(initialTier);
@@ -143,7 +145,8 @@ export const VipView: React.FC<VipViewProps> = ({
     setTimeout(() => {
       setIsSubmitting(false);
       const tierName = activeTier === 'silver' ? '订阅会员' : '技能会员';
-      onShowToast(`🎉 成功开通【${tierName} - ${currentSelectedPlan.name}】！各项专属额度已立即生效！`);
+      onUpgradeVipTier?.(activeTier);
+      onShowToast(`🎉 成功开通【${tierName} - ${currentSelectedPlan.name}】！消息漫游与特权已同步！`);
     }, 600);
   };
 
@@ -605,52 +608,6 @@ export const VipView: React.FC<VipViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* 7. FAQ */}
-      <div className="space-y-2.5">
-        <h3 className="text-xs font-extrabold text-white flex items-center gap-1.5">
-          <HelpCircle size={14} className="text-purple-400" />
-          <span>常见问题与订阅说明</span>
-        </h3>
-
-        <div className="space-y-2">
-          {[
-            {
-              q: '订阅会员与技能会员有什么区别？',
-              a: '订阅会员主打基础聊天扩展与高性价比写作助手（每天高达 800 次对话与消息漫游）；技能会员包含 PPT 制作、睡前语音故事、全能学习监督规划以及绑定微信等高阶服务。',
-            },
-            {
-              q: '使用额度用完后怎么办理？',
-              a: '若当月或当季的图片、剧本或故事生成额度用尽，可以在下方“超出加量包”区域随时按需付费单独补充，无须重复升级会员。',
-            },
-            {
-              q: '购买后支持多端同步生效吗？',
-              a: '支持！同一账号登录即可在手机端、电脑端及网页端同步使用所有订阅会员或技能会员特权与补给包。',
-            },
-          ].map((item, idx) => (
-            <div
-              key={idx}
-              onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-              className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 cursor-pointer transition"
-            >
-              <div className="flex items-center justify-between text-xs font-bold text-white/90">
-                <span>{item.q}</span>
-                <ChevronRight
-                  size={14}
-                  className={`text-white/40 transition-transform ${
-                    activeFaq === idx ? 'rotate-90 text-purple-400' : ''
-                  }`}
-                />
-              </div>
-              {activeFaq === idx && (
-                <p className="text-[11px] text-white/60 mt-2 pt-2 border-t border-white/5 leading-relaxed font-light">
-                  {item.a}
-                </p>
-              )}
-            </div>
-          ))}
         </div>
       </div>
     </div>

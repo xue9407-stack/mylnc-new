@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Role, Conversation, ChatMessage, UserProfile, AppPage } from './types';
+import { Role, Conversation, ChatMessage, GroupChat, GroupMessage, UserProfile, AppPage } from './types';
 import { api } from './services/api';
 import { PhoneFrame } from './components/PhoneFrame';
 import { DetailModal } from './components/DetailModal';
 import { ChatView } from './components/ChatView';
+import { CreateGroupModal } from './components/CreateGroupModal';
+import { GroupChatView } from './components/GroupChatView';
 import { RechargeModal } from './components/RechargeModal';
 import { Toast } from './components/Toast';
 import { RoleAvatar } from './components/RoleAvatar';
 import { HelpFeedbackView } from './components/HelpFeedbackView';
 import { SettingsView } from './components/SettingsView';
+import { MessageRoamingView } from './components/MessageRoamingView';
+import { RealNameAuthModal } from './components/RealNameAuthModal';
 import { CategoryChips } from './components/CategoryChips';
 import { CreatorView } from './components/CreatorView';
 import { HomeRecommendView } from './components/HomeRecommendView';
@@ -47,6 +51,7 @@ import {
   Camera,
   Edit2,
   ShieldCheck,
+  Users,
 } from 'lucide-react';
 
 const CATEGORIES = ['全部', '霸总', '温柔', '邻家', '病娇', '御姐', '学长', '治愈', '高冷', '阳光'];
@@ -88,6 +93,29 @@ export default function App() {
   const [homeSearchKeyword, setHomeSearchKeyword] = useState<string>('');
   const [exploreKeyword, setExploreKeyword] = useState<string>('');
   const [vipInitialTier, setVipInitialTier] = useState<'silver' | 'platinum'>('silver');
+  const [vipTier, setVipTier] = useState<'default' | 'silver' | 'platinum'>(() => {
+    return (localStorage.getItem('user_vip_tier') as any) || 'default';
+  });
+  const [roamingDays, setRoamingDays] = useState<number>(() => {
+    const saved = localStorage.getItem('user_roaming_days');
+    if (saved) return parseInt(saved, 10);
+    const tier = localStorage.getItem('user_vip_tier');
+    if (tier === 'platinum') return 180;
+    if (tier === 'silver') return 120;
+    return 60;
+  });
+
+  // Real-name Verification State
+  const [isRealNameVerified, setIsRealNameVerified] = useState<boolean>(() => {
+    return localStorage.getItem('user_realname_verified') === 'true';
+  });
+  const [realName, setRealName] = useState<string>(() => {
+    return localStorage.getItem('user_realname') || '';
+  });
+  const [realIdCard, setRealIdCard] = useState<string>(() => {
+    return localStorage.getItem('user_real_idcard') || '';
+  });
+  const [showRealNameAuthModal, setShowRealNameAuthModal] = useState(false);
   const [homeTopTab, setHomeTopTab] = useState<'recommend' | 'theater' | 'original' | 'game'>('recommend');
   const [hasUnreadMoments, setHasUnreadMoments] = useState<boolean>(() => {
     return localStorage.getItem('hasUnreadMoments') !== 'false';
@@ -136,6 +164,321 @@ export default function App() {
   });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState<boolean>(false);
+
+  // Group Chat States & Logic
+  const [messagesSubTab, setMessagesSubTab] = useState<'private' | 'group'>('private');
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState<boolean>(false);
+  const [activeGroupChatId, setActiveGroupChatId] = useState<string | null>(null);
+
+  const [groupChats, setGroupChats] = useState<GroupChat[]>(() => {
+    try {
+      const saved = localStorage.getItem('groupChats');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [
+      {
+        id: 'group_1',
+        name: '👑 豪门吃醋修罗场',
+        topic: '极具嫉妒心的豪门角色聚在一起，争风吃醋的修罗场',
+        memberRoleIds: ['1', '2', '8'],
+        lastMsg: '女人，在我面前少跟林修远眉来眼去。',
+        lastSenderName: '陆景琛',
+        time: '16:45',
+        unread: 2,
+        updatedAt: Date.now(),
+      },
+      {
+        id: 'group_2',
+        name: '🎮 顶尖电竞开黑车队',
+        topic: '全员大神聚集，商讨总决赛战术与日常打卡',
+        memberRoleIds: ['6', '5', '1'],
+        lastMsg: '今晚八点准时五排，迟到的扣月薪。',
+        lastSenderName: '沈凉',
+        time: '昨天',
+        unread: 0,
+        updatedAt: Date.now() - 3600000,
+      },
+    ];
+  });
+
+  const [groupMessages, setGroupMessages] = useState<Record<string, GroupMessage[]>>(() => {
+    try {
+      const saved = localStorage.getItem('groupMessages');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch {}
+    return {
+      group_1: [
+        {
+          id: 1,
+          groupId: 'group_1',
+          sender: 'role',
+          roleId: '1',
+          roleName: '陆景琛',
+          text: '听说今晚某人不仅答应了我，还私底下约了林修远？',
+          time: '16:40',
+          timestamp: Date.now() - 300000,
+        },
+        {
+          id: 2,
+          groupId: 'group_1',
+          sender: 'role',
+          roleId: '2',
+          roleName: '林修远',
+          text: '陆总说话何必这么刺耳？学妹只是想向我请教建筑设计而已。',
+          time: '16:42',
+          timestamp: Date.now() - 180000,
+        },
+        {
+          id: 3,
+          groupId: 'group_1',
+          sender: 'role',
+          roleId: '8',
+          roleName: '许逸',
+          text: '两位哥哥别吵啦，姐姐最喜欢的明明是我好不好~',
+          time: '16:44',
+          timestamp: Date.now() - 120000,
+        },
+        {
+          id: 4,
+          groupId: 'group_1',
+          sender: 'role',
+          roleId: '1',
+          roleName: '陆景琛',
+          text: '女人，在我面前少跟林修远眉来眼去。',
+          time: '16:45',
+          timestamp: Date.now() - 60000,
+        },
+      ],
+      group_2: [
+        {
+          id: 10,
+          groupId: 'group_2',
+          sender: 'role',
+          roleId: '6',
+          roleName: '沈凉',
+          text: '今晚八点准时五排，迟到的扣月薪。',
+          time: '昨天',
+          timestamp: Date.now() - 3600000,
+        },
+      ],
+    };
+  });
+
+  const handleCreateGroup = (name: string, topic: string, roleIds: string[]) => {
+    const newGroupId = `group_${Date.now()}`;
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const newGroup: GroupChat = {
+      id: newGroupId,
+      name,
+      topic,
+      memberRoleIds: roleIds,
+      lastMsg: '已成功发起 AI 派对群聊，大家快来热聊吧！',
+      lastSenderName: '系统通知',
+      time: timeStr,
+      unread: 0,
+      updatedAt: Date.now(),
+    };
+
+    setGroupChats((prev) => {
+      const updated = [newGroup, ...prev];
+      localStorage.setItem('groupChats', JSON.stringify(updated));
+      return updated;
+    });
+
+    const firstRoleId = roleIds[0];
+    const firstRole = roles.find((r) => r.id === firstRoleId);
+    const welcomeMsg: GroupMessage = {
+      id: Date.now(),
+      groupId: newGroupId,
+      sender: 'role',
+      roleId: firstRoleId,
+      roleName: firstRole?.name || 'AI 成员',
+      avatarUrl: ROLE_MEDIA_MAP[firstRoleId]?.avatarUrl || firstRole?.avatarUrl,
+      text: `欢迎大家加入【${name}】！我随时在这里与你和其他人互动哦~`,
+      time: timeStr,
+      timestamp: Date.now(),
+    };
+
+    setGroupMessages((prev) => {
+      const updated = { ...prev, [newGroupId]: [welcomeMsg] };
+      localStorage.setItem('groupMessages', JSON.stringify(updated));
+      return updated;
+    });
+
+    setShowCreateGroupModal(false);
+    setActiveGroupChatId(newGroupId);
+    showToast(`🎉 成功开启群聊【${name}】！`);
+  };
+
+  const handleSendGroupMessage = async (groupId: string, text: string, targetRoleId?: string) => {
+    const targetGroup = groupChats.find((g) => g.id === groupId);
+    if (!targetGroup) return;
+
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const userMsg: GroupMessage = {
+      id: Date.now(),
+      groupId,
+      sender: 'user',
+      text,
+      time: timeStr,
+      timestamp: Date.now(),
+    };
+
+    setGroupMessages((prev) => {
+      const currentMsgs = prev[groupId] || [];
+      const updated = { ...prev, [groupId]: [...currentMsgs, userMsg] };
+      localStorage.setItem('groupMessages', JSON.stringify(updated));
+      return updated;
+    });
+
+    let responderRoleId = targetRoleId;
+    if (!responderRoleId) {
+      const validMemberIds = targetGroup.memberRoleIds;
+      responderRoleId = validMemberIds[Math.floor(Math.random() * validMemberIds.length)];
+    }
+    const responderRole = roles.find((r) => r.id === responderRoleId);
+
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        let replyText = '';
+        if (responderRole?.name.includes('陆景琛')) {
+          replyText = `关于你说的“${text}”，我认为你需要单独和我解释一下，其他人少插嘴。`;
+        } else if (responderRole?.name.includes('林修远')) {
+          replyText = `别听陆总胡说。关于“${text}”，我觉得你处理得很棒，有任何不懂随时跟我说。`;
+        } else if (responderRole?.name.includes('许逸')) {
+          replyText = `姐姐只理我一个人好不好？在群里提到他们，我会吃醋的...`;
+        } else if (responderRole?.name.includes('林小柔')) {
+          replyText = `哥哥你在群里发言好帅气呀！大家都要对哥哥温柔一点哦。`;
+        } else if (responderRole?.name.includes('沈凉')) {
+          replyText = `有这工夫聊天，不如现在上线跟我走一局上分。`;
+        } else if (responderRole?.name.includes('艾尔利斯')) {
+          replyText = `星象轨迹在“${text}”这一刻产生了共鸣，很有见地的言论。`;
+        } else if (responderRole?.name.includes('妙妙')) {
+          replyText = `喵！我也觉得是这样喵！快抱抱妙妙犒劳一下！`;
+        } else {
+          replyText = `我是【${responderRole?.name || 'AI角色'}】，关于“${text}”，我很赞同，大家在群里聊天真热闹！`;
+        }
+
+        const roleMsg: GroupMessage = {
+          id: Date.now() + 1,
+          groupId,
+          sender: 'role',
+          roleId: responderRoleId,
+          roleName: responderRole?.name || 'AI 成员',
+          avatarUrl: ROLE_MEDIA_MAP[responderRoleId!]?.avatarUrl || responderRole?.avatarUrl,
+          text: replyText,
+          time: timeStr,
+          timestamp: Date.now() + 1,
+        };
+
+        setGroupMessages((prev) => {
+          const currentMsgs = prev[groupId] || [];
+          const updated = { ...prev, [groupId]: [...currentMsgs, roleMsg] };
+          localStorage.setItem('groupMessages', JSON.stringify(updated));
+          return updated;
+        });
+
+        setGroupChats((prev) => {
+          const updated = prev.map((g) => {
+            if (g.id === groupId) {
+              return {
+                ...g,
+                lastMsg: replyText,
+                lastSenderName: responderRole?.name || 'AI',
+                time: timeStr,
+                updatedAt: Date.now(),
+              };
+            }
+            return g;
+          });
+          localStorage.setItem('groupChats', JSON.stringify(updated));
+          return updated;
+        });
+
+        resolve();
+      }, 1000);
+    });
+  };
+
+  const handleTriggerAiCollision = async (groupId: string) => {
+    const targetGroup = groupChats.find((g) => g.id === groupId);
+    if (!targetGroup || targetGroup.memberRoleIds.length === 0) return;
+
+    const randomRoleId = targetGroup.memberRoleIds[Math.floor(Math.random() * targetGroup.memberRoleIds.length)];
+    const role = roles.find((r) => r.id === randomRoleId);
+
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        const collisions = [
+          `（看向群里的其他人）你们聊得倒是挺欢，不知道当事人怎么想？`,
+          `既然大家都在，不如我们各自说一个关于她的秘密？`,
+          `刚才的话我都看到了。希望大家在群里能保持克制，特别是对她说话的时候。`,
+          `好热闹呀！大家玩得开心，我也要一直陪在她身边才行！`,
+        ];
+
+        const text = collisions[Math.floor(Math.random() * collisions.length)];
+
+        const roleMsg: GroupMessage = {
+          id: Date.now(),
+          groupId,
+          sender: 'role',
+          roleId: randomRoleId,
+          roleName: role?.name || 'AI 成员',
+          avatarUrl: ROLE_MEDIA_MAP[randomRoleId]?.avatarUrl || role?.avatarUrl,
+          text,
+          time: timeStr,
+          timestamp: Date.now(),
+        };
+
+        setGroupMessages((prev) => {
+          const currentMsgs = prev[groupId] || [];
+          const updated = { ...prev, [groupId]: [...currentMsgs, roleMsg] };
+          localStorage.setItem('groupMessages', JSON.stringify(updated));
+          return updated;
+        });
+
+        setGroupChats((prev) => {
+          const updated = prev.map((g) => {
+            if (g.id === groupId) {
+              return {
+                ...g,
+                lastMsg: text,
+                lastSenderName: role?.name || 'AI',
+                time: timeStr,
+                updatedAt: Date.now(),
+              };
+            }
+            return g;
+          });
+          localStorage.setItem('groupChats', JSON.stringify(updated));
+          return updated;
+        });
+
+        resolve();
+      }, 900);
+    });
+  };
+
+  const handleClearGroupHistory = (groupId: string) => {
+    setGroupMessages((prev) => {
+      const copy = { ...prev };
+      delete copy[groupId];
+      localStorage.setItem('groupMessages', JSON.stringify(copy));
+      return copy;
+    });
+  };
   const [intimacies, setIntimacies] = useState<Record<string, number>>(() => loadAllIntimacies());
   const [follows, setFollows] = useState<string[]>(() => {
     try {
@@ -829,61 +1172,20 @@ export default function App() {
           {/* Scrollable Main Content */}
           <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4 pb-28 no-scrollbar">
 
-            {/* "登岛必聊" Section Header */}
-            <div className="space-y-2.5">
+            {/* Category Chips & Filters Header */}
+            <div className="space-y-2.5 pt-1">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-white tracking-wide flex items-center gap-1.5">
-                  <span>登岛必聊</span>
-                  <span className="text-[10px] text-pink-400 bg-pink-500/15 px-2 py-0.2 rounded-full font-normal">
-                    TOP 3 推荐
+                <h2 className="text-sm font-black text-white tracking-wide flex items-center gap-1.5">
+                  <span>精选 AI 伙伴</span>
+                  <span className="text-[10px] text-purple-300 bg-purple-500/20 px-2 py-0.2 rounded-full font-bold border border-purple-500/30">
+                    {filteredHomeRoles.length} 位在线
                   </span>
                 </h2>
-                <button
-                  onClick={() => setCurrentPage('explore')}
-                  className="text-xs text-white/50 hover:text-white flex items-center gap-0.5"
-                >
-                  <span>更多</span>
-                  <ChevronRight size={13} />
-                </button>
+                <span className="text-[11px] text-white/40">随时随地开启心动聊天</span>
               </div>
-
-              {/* 3 Rank Cards Grid */}
-              <div className="grid grid-cols-3 gap-2.5">
-                {roles.slice(0, 3).map((role, idx) => {
-                  const rankTitles = ['创作飙升', '潜力新秀', '热度飙升'];
-                  return (
-                    <div
-                      key={role.id}
-                      onClick={() => setDetailRole(role)}
-                      className="bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl overflow-hidden text-center cursor-pointer active:scale-95 transition group"
-                    >
-                      <div className="h-28 overflow-hidden relative">
-                        <img
-                          src={ROLE_MEDIA_MAP[role.id]?.avatarUrl || role.avatarUrl || '/avatars/lujingchen.jpg'}
-                          alt={role.name}
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover object-top group-hover:scale-110 transition duration-300"
-                        />
-                        <span className="absolute top-1 left-1 px-1.5 py-0.2 rounded-md bg-black/70 backdrop-blur-xs text-[9px] text-pink-300 font-bold border border-pink-500/30">
-                          #{idx + 1}
-                        </span>
-                      </div>
-                      <div className="p-2">
-                        <div className="text-xs font-extrabold text-white truncate">{rankTitles[idx]}</div>
-                        <div className="text-[10px] text-white/50 truncate mt-0.5">{role.name}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* "发现更多" Tag Filters Header */}
-            <div className="space-y-2 pt-1">
-              <div className="text-sm font-bold text-white tracking-wide">发现更多</div>
 
               <CategoryChips
-                categories={['全部', '忠诚', '白切黑', '清冷', '玄', '天生对手', '霸道', '治愈']}
+                categories={['全部', '霸主', '温柔', '病娇', '清冷', '玄幻', '电竞', '治愈']}
                 selectedCategory={selectedCategory}
                 onSelectCategory={setSelectedCategory}
               />
@@ -1070,95 +1372,251 @@ export default function App() {
         </div>
       )}
 
-      {/* 4. MESSAGES / CONVERSATIONS PAGE */}
-      {currentPage === 'messages' && (
+      {/* 4. MESSAGES / CONVERSATIONS & GROUP CHATS PAGE */}
+      {currentPage === 'messages' && activeGroupChatId && (
+        (() => {
+          const activeGroup = groupChats.find((g) => g.id === activeGroupChatId);
+          if (!activeGroup) return null;
+          const msgs = groupMessages[activeGroupChatId] || [];
+          return (
+            <GroupChatView
+              group={activeGroup}
+              roles={roles}
+              messages={msgs}
+              onBack={() => setActiveGroupChatId(null)}
+              onSendMessage={handleSendGroupMessage}
+              onTriggerAiCollision={handleTriggerAiCollision}
+              onClearHistory={handleClearGroupHistory}
+              onShowToast={showToast}
+            />
+          );
+        })()
+      )}
+
+      {currentPage === 'messages' && !activeGroupChatId && (
         <div id="page-messages" className="h-full flex flex-col bg-[#0a0a0f] overflow-hidden">
-          <div className="px-5 pt-3 pb-2 shrink-0 flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-black text-white tracking-wide">消息</h1>
-              <p className="text-xs text-white/40 mt-0.5">随时与关注的心动角色畅聊</p>
+          {/* Header */}
+          <div className="px-5 pt-3 pb-2 shrink-0 space-y-3 border-b border-white/5 bg-[#0d0b17]/80 backdrop-blur-md">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-black text-white tracking-wide">消息</h1>
+                <p className="text-xs text-white/40 mt-0.5">随时与心动角色私聊或多角群聊碰撞</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowCreateGroupModal(true)}
+                  className="flex items-center gap-1.5 text-xs text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-3 py-1.5 rounded-full font-extrabold shadow-md shadow-purple-500/20 transition active:scale-95 cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>发起群聊</span>
+                </button>
+
+                {totalUnread > 0 && (
+                  <button
+                    onClick={markAllConversationsAsRead}
+                    className="flex items-center gap-1 text-[11px] text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 px-2.5 py-1.5 rounded-full border border-purple-500/30 transition active:scale-95 cursor-pointer"
+                  >
+                    <CheckCheck size={13} />
+                    <span>已读</span>
+                  </button>
+                )}
+              </div>
             </div>
-            {totalUnread > 0 && (
+
+            {/* Sub Tabs: Private Chat vs Group Chat */}
+            <div className="flex items-center p-1 rounded-2xl bg-white/[0.04] border border-white/10">
               <button
-                onClick={markAllConversationsAsRead}
-                className="flex items-center gap-1 text-[11px] text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 px-2.5 py-1 rounded-full border border-purple-500/30 transition active:scale-95"
+                type="button"
+                onClick={() => setMessagesSubTab('private')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  messagesSubTab === 'private'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'text-white/50 hover:text-white'
+                }`}
               >
-                <CheckCheck size={13} />
-                <span>全部已读 ({totalUnread})</span>
+                <MessageSquare size={13} />
+                <span>单聊私信 ({conversations.length})</span>
               </button>
-            )}
+
+              <button
+                type="button"
+                onClick={() => setMessagesSubTab('group')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  messagesSubTab === 'group'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                    : 'text-white/50 hover:text-white'
+                }`}
+              >
+                <Users size={13} />
+                <span>AI 派对群聊 ({groupChats.length})</span>
+                {groupChats.some((g) => g.unread > 0) && (
+                  <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
+                )}
+              </button>
+            </div>
           </div>
 
+          {/* Conversations or Group List */}
           <div className="flex-1 overflow-y-auto divide-y divide-white/5 pb-24">
-            {conversations.length === 0 ? (
-              <div className="text-center py-20 text-white/40">
-                <div className="text-4xl mb-3">💬</div>
-                <div className="text-sm font-medium">暂无会话记录</div>
-                <button
-                  onClick={() => setCurrentPage('home')}
-                  className="mt-3 px-4 py-1.5 rounded-full bg-purple-600/30 text-purple-300 text-xs border border-purple-500/40 hover:bg-purple-600/50 transition"
-                >
-                  去首页挑选角色聊聊
-                </button>
-              </div>
-            ) : (
-              conversations.map((conv) => {
-                const foundRole = roles.find((r) => r.id === conv.roleId);
-                const intimacyData = getIntimacyData(intimacies[conv.roleId] || 0);
-                return (
-                  <div
-                    key={conv.roleId}
-                    onClick={() => {
-                      if (foundRole) startChatWithRole(foundRole);
-                    }}
-                    className="flex items-center px-5 py-3.5 hover:bg-white/5 active:bg-white/8 cursor-pointer transition"
+            {messagesSubTab === 'private' ? (
+              conversations.length === 0 ? (
+                <div className="text-center py-20 text-white/40">
+                  <div className="text-4xl mb-3">💬</div>
+                  <div className="text-sm font-medium">暂无私聊会话</div>
+                  <button
+                    onClick={() => setCurrentPage('home')}
+                    className="mt-3 px-4 py-1.5 rounded-full bg-purple-600/30 text-purple-300 text-xs border border-purple-500/40 hover:bg-purple-600/50 transition cursor-pointer"
                   >
-                    <div className="relative mr-3.5 shrink-0">
-                      <RoleAvatar
-                        name={conv.name}
-                        avatarUrl={ROLE_MEDIA_MAP[conv.roleId]?.avatarUrl || foundRole?.avatarUrl}
-                        emoji={conv.emoji}
-                        coverClass={conv.cover}
-                        size="lg"
-                        showOnlineBadge
-                      />
-                      <span className="absolute -bottom-1 -right-1 px-1 py-0.2 rounded bg-black/80 text-[8px] text-pink-300 font-bold border border-pink-500/30">
-                        Lv.{intimacyData.level}
-                      </span>
-                    </div>
+                    去首页挑选角色聊聊
+                  </button>
+                </div>
+              ) : (
+                conversations.map((conv) => {
+                  const foundRole = roles.find((r) => r.id === conv.roleId);
+                  const intimacyData = getIntimacyData(intimacies[conv.roleId] || 0);
+                  return (
+                    <div
+                      key={conv.roleId}
+                      onClick={() => {
+                        if (foundRole) startChatWithRole(foundRole);
+                      }}
+                      className="flex items-center px-5 py-3.5 hover:bg-white/5 active:bg-white/8 cursor-pointer transition"
+                    >
+                      <div className="relative mr-3.5 shrink-0">
+                        <RoleAvatar
+                          name={conv.name}
+                          avatarUrl={ROLE_MEDIA_MAP[conv.roleId]?.avatarUrl || foundRole?.avatarUrl}
+                          emoji={conv.emoji}
+                          coverClass={conv.cover}
+                          size="lg"
+                          showOnlineBadge
+                        />
+                        <span className="absolute -bottom-1 -right-1 px-1 py-0.2 rounded bg-black/80 text-[8px] text-pink-300 font-bold border border-pink-500/30">
+                          Lv.{intimacyData.level}
+                        </span>
+                      </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <span className="text-sm font-bold text-white truncate">{conv.name}</span>
-                          <span className="text-[10px] text-pink-300/80 bg-pink-500/10 px-1.5 py-0.2 rounded">
-                            {intimacyData.title}
-                          </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="text-sm font-bold text-white truncate">{conv.name}</span>
+                            <span className="text-[10px] text-pink-300/80 bg-pink-500/10 px-1.5 py-0.2 rounded">
+                              {intimacyData.title}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-white/40 font-mono">{conv.time}</span>
                         </div>
-                        <span className="text-[11px] text-white/40 font-mono">{conv.time}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-white/55 truncate pr-2">{conv.lastMsg}</p>
-                        {conv.unread > 0 && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              markConversationAsRead(conv.roleId);
-                            }}
-                            className="px-1.5 py-0.5 rounded-full bg-red-500 hover:bg-red-600 active:scale-90 transition text-white text-[10px] font-bold shadow-sm"
-                            title="点击标记为已读"
-                          >
-                            {conv.unread}
-                          </button>
-                        )}
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-white/55 truncate pr-2">{conv.lastMsg}</p>
+                          {conv.unread > 0 && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                markConversationAsRead(conv.roleId);
+                              }}
+                              className="px-1.5 py-0.5 rounded-full bg-red-500 hover:bg-red-600 active:scale-90 transition text-white text-[10px] font-bold shadow-sm cursor-pointer"
+                              title="点击标记为已读"
+                            >
+                              {conv.unread}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
+                  );
+                })
+              )
+            ) : (
+              /* GROUP CHATS LIST */
+              groupChats.length === 0 ? (
+                <div className="text-center py-20 text-white/40 space-y-3">
+                  <div className="w-16 h-16 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto text-purple-300">
+                    <Users size={32} />
                   </div>
-                );
-              })
+                  <div className="text-sm font-bold text-white/80">暂无 AI 群聊派对</div>
+                  <p className="text-xs text-white/40 max-w-xs mx-auto">
+                    点击右上角“发起群聊”，挑选多位喜欢的 AI 角色开启修罗场或热聊派对吧！
+                  </p>
+                  <button
+                    onClick={() => setShowCreateGroupModal(true)}
+                    className="mt-2 px-5 py-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold text-xs shadow-lg shadow-purple-500/25 hover:scale-105 active:scale-95 transition cursor-pointer"
+                  >
+                    + 立即发起第一个 AI 群聊
+                  </button>
+                </div>
+              ) : (
+                groupChats.map((g) => {
+                  const memberRoles = roles.filter((r) => g.memberRoleIds.includes(r.id));
+                  return (
+                    <div
+                      key={g.id}
+                      onClick={() => setActiveGroupChatId(g.id)}
+                      className="flex items-center px-5 py-3.5 hover:bg-white/5 active:bg-white/8 cursor-pointer transition border-b border-white/5"
+                    >
+                      {/* Stacked Avatars / Group Avatar Badge */}
+                      <div className="relative mr-3.5 shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-900/60 to-pink-900/60 border border-purple-500/30 flex items-center justify-center overflow-hidden shadow-md">
+                        <div className="flex -space-x-2">
+                          {memberRoles.slice(0, 3).map((m) => (
+                            <div key={m.id} className="inline-block ring-2 ring-[#0a0a0f] rounded-full">
+                              <RoleAvatar
+                                name={m.name}
+                                avatarUrl={ROLE_MEDIA_MAP[m.id]?.avatarUrl || m.avatarUrl}
+                                emoji={m.emoji}
+                                coverClass={m.cover}
+                                size="xs"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <span className="absolute -bottom-0.5 -right-0.5 px-1 py-0.2 rounded bg-purple-600 text-[8px] text-white font-extrabold">
+                          {memberRoles.length}人
+                        </span>
+                      </div>
+
+                      {/* Group Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="text-sm font-extrabold text-white truncate">{g.name}</span>
+                            <span className="text-[9px] text-purple-300 bg-purple-500/20 px-1.5 py-0.2 rounded border border-purple-500/30">
+                              派对
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-white/40 font-mono">{g.time}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-white/60 truncate pr-2">
+                            {g.lastSenderName ? (
+                              <span className="text-purple-300 font-bold mr-1">{g.lastSenderName}:</span>
+                            ) : null}
+                            {g.lastMsg}
+                          </p>
+                          {g.unread > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full bg-pink-500 text-white text-[10px] font-bold shadow-sm">
+                              {g.unread}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )
             )}
           </div>
         </div>
+      )}
+
+      {/* Create Group Modal */}
+      {showCreateGroupModal && (
+        <CreateGroupModal
+          roles={roles}
+          onClose={() => setShowCreateGroupModal(false)}
+          onCreateGroup={handleCreateGroup}
+          onShowToast={showToast}
+        />
       )}
 
       {/* 4. CREATOR PAGE */}
@@ -1223,7 +1681,7 @@ export default function App() {
                     setVipInitialTier('platinum');
                     setCurrentPage('vip');
                   }}
-                  className="px-3 py-1 rounded-full bg-gradient-to-r from-pink-500/25 via-purple-500/20 to-pink-400/10 border border-pink-400/50 text-pink-300 text-[11px] font-extrabold flex items-center gap-1 shadow-md shadow-pink-500/20 backdrop-blur-md whitespace-nowrap hover:scale-105 active:scale-95 transition cursor-pointer"
+                  className="px-3 py-1 rounded-full bg-gradient-to-r from-pink-500/25 via-purple-500/20 to-pink-400/10 border border-pink-400/50 text-pink-300 text-[11px] font-extrabold flex items-center gap-1 shadow-md shadow-amber-500/20 backdrop-blur-md whitespace-nowrap hover:scale-105 active:scale-95 transition cursor-pointer"
                 >
                   <Sparkles size={12} className="text-pink-400 fill-pink-400 shrink-0" />
                   <span>技能会员</span>
@@ -1415,6 +1873,13 @@ export default function App() {
           onBack={() => setCurrentPage('profile')}
           onShowToast={showToast}
           onRechargeModal={() => setCurrentPage('wallet')}
+          onUpgradeVipTier={(tier) => {
+            setVipTier(tier);
+            localStorage.setItem('user_vip_tier', tier);
+            const days = tier === 'platinum' ? 180 : 120;
+            setRoamingDays(days);
+            localStorage.setItem('user_roaming_days', String(days));
+          }}
         />
       )}
 
@@ -1582,8 +2047,29 @@ export default function App() {
       {/* 11. SUB-PAGE: SETTINGS */}
       {currentPage === 'settings' && (
         <SettingsView
+          roamingDays={roamingDays}
+          vipTier={vipTier}
+          isRealNameVerified={isRealNameVerified}
+          realName={realName}
+          realIdCard={realIdCard}
           onBack={() => setCurrentPage('profile')}
           onShowToast={showToast}
+          onOpenMessageRoaming={() => setCurrentPage('message_roaming')}
+          onOpenRealNameAuth={() => setShowRealNameAuthModal(true)}
+        />
+      )}
+
+      {/* 11b. SUB-PAGE: MESSAGE ROAMING */}
+      {currentPage === 'message_roaming' && (
+        <MessageRoamingView
+          roamingDays={roamingDays}
+          vipTier={vipTier}
+          onBack={() => setCurrentPage('settings')}
+          onShowToast={showToast}
+          onUpgradeVip={() => {
+            setVipInitialTier('silver');
+            setCurrentPage('vip');
+          }}
         />
       )}
 
@@ -1771,6 +2257,24 @@ export default function App() {
         }}
         onShowToast={showToast}
       />
+
+      {showRealNameAuthModal && (
+        <RealNameAuthModal
+          isVerified={isRealNameVerified}
+          verifiedName={realName}
+          verifiedIdCard={realIdCard}
+          onClose={() => setShowRealNameAuthModal(false)}
+          onVerifySuccess={(name, idCard) => {
+            setIsRealNameVerified(true);
+            setRealName(name);
+            setRealIdCard(idCard);
+            localStorage.setItem('user_realname_verified', 'true');
+            localStorage.setItem('user_realname', name);
+            localStorage.setItem('user_real_idcard', idCard);
+          }}
+          onShowToast={showToast}
+        />
+      )}
     </PhoneFrame>
   );
 }

@@ -37,6 +37,30 @@ export interface Conversation {
   updatedAt?: number;
 }
 
+export interface GroupMessage {
+  id: number;
+  groupId: string;
+  sender: 'user' | 'role';
+  roleId?: string;
+  roleName?: string;
+  avatarUrl?: string;
+  text: string;
+  time: string;
+  timestamp: number;
+}
+
+export interface GroupChat {
+  id: string;
+  name: string;
+  topic?: string;
+  memberRoleIds: string[];
+  lastMsg: string;
+  lastSenderName?: string;
+  time: string;
+  unread: number;
+  updatedAt: number;
+}
+
 export interface ChatMessage {
   id: number;
   roleId: string;
@@ -56,6 +80,12 @@ export interface UserProfile {
   vip_level: number;
   vip_text: string;
   vip_status?: number;
+  gender?: string;
+  school?: string;
+  bio?: string;
+  emergencyContact?: string;
+  uid?: string;
+  diamonds?: number;
 }
 
 export interface UserStats {
@@ -169,4 +199,5 @@ export type AppPage =
   | 'wallet'
   | 'creator'
   | 'settings'
-  | 'help';
+  | 'help'
+  | 'message_roaming';

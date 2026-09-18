@@ -15,16 +15,34 @@ import {
   AlertTriangle,
   X,
   ExternalLink,
+  Music,
+  MessageSquare,
+  History,
+  UserCheck,
 } from 'lucide-react';
 
 interface SettingsViewProps {
+  roamingDays: number;
+  vipTier: 'default' | 'silver' | 'platinum';
+  isRealNameVerified: boolean;
+  realName: string;
+  realIdCard: string;
   onBack: () => void;
   onShowToast: (msg: string) => void;
+  onOpenMessageRoaming: () => void;
+  onOpenRealNameAuth: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
+  roamingDays,
+  vipTier,
+  isRealNameVerified,
+  realName,
+  realIdCard,
   onBack,
   onShowToast,
+  onOpenMessageRoaming,
+  onOpenRealNameAuth,
 }) => {
   // Settings toggle states with local persistence
   const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
@@ -41,6 +59,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const [streamTyping, setStreamTyping] = useState(() => {
     return localStorage.getItem('setting_stream_typing') !== 'false';
+  });
+
+  const [chatMusicEnabled, setChatMusicEnabled] = useState(() => {
+    return localStorage.getItem('setting_chat_music') === 'true';
+  });
+
+  const [proactiveMsgEnabled, setProactiveMsgEnabled] = useState(() => {
+    return localStorage.getItem('setting_proactive_msg') !== 'false';
   });
 
   // Dynamic Cache calculation
@@ -102,6 +128,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onShowToast(next ? '已开启打字机沉浸动效' : '已关闭打字机动效');
   };
 
+  const toggleChatMusic = () => {
+    const next = !chatMusicEnabled;
+    setChatMusicEnabled(next);
+    localStorage.setItem('setting_chat_music', String(next));
+    onShowToast(next ? '🎵 已开启聊天背景音乐' : '已关闭聊天背景音乐');
+  };
+
+  const toggleProactiveMsg = () => {
+    const next = !proactiveMsgEnabled;
+    setProactiveMsgEnabled(next);
+    localStorage.setItem('setting_proactive_msg', String(next));
+    onShowToast(next ? '💬 已允许角色主动发消息' : '已关闭角色主动发消息');
+  };
+
+  const getRoamingLabel = () => {
+    if (roamingDays === 180 || vipTier === 'platinum') return '180 天 (星辰卡)';
+    if (roamingDays === 120 || vipTier === 'silver') return '120 天 (星月卡)';
+    return '60 天 (默认)';
+  };
+
   const handleClearCache = () => {
     setIsClearing(true);
     setTimeout(() => {
@@ -140,6 +186,120 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {/* Main Settings List */}
       <div className="flex-1 overflow-y-auto p-4 pb-28 space-y-4">
+        {/* Group 0: 核心互动与云端服务 */}
+        <div className="space-y-1.5">
+          <div className="text-[11px] font-semibold text-white/40 px-1 uppercase tracking-wider">
+            聊天互动与数据服务
+          </div>
+          <div className="bg-white/[0.03] border border-white/10 rounded-2xl divide-y divide-white/5 overflow-hidden text-xs">
+            {/* 播放聊天音乐 */}
+            <div
+              onClick={toggleChatMusic}
+              className="p-3.5 flex items-center justify-between hover:bg-white/5 cursor-pointer transition"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-pink-500/20 text-pink-400 flex items-center justify-center">
+                  <Music size={15} />
+                </div>
+                <div>
+                  <div className="font-semibold text-white">播放聊天音乐</div>
+                  <div className="text-[10px] text-white/40">开启沉浸式聊天背景音乐与氛围音效</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  chatMusicEnabled ? 'bg-pink-600' : 'bg-white/20'
+                }`}
+                aria-label="切换播放聊天音乐"
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    chatMusicEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* 角色主动发消息 */}
+            <div
+              onClick={toggleProactiveMsg}
+              className="p-3.5 flex items-center justify-between hover:bg-white/5 cursor-pointer transition"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                  <MessageSquare size={15} />
+                </div>
+                <div>
+                  <div className="font-semibold text-white">角色主动发消息</div>
+                  <div className="text-[10px] text-white/40">允许关注的角色在空闲时给您发送私信或早晚安</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                  proactiveMsgEnabled ? 'bg-pink-600' : 'bg-white/20'
+                }`}
+                aria-label="切换角色主动发消息"
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    proactiveMsgEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* 消息漫游 */}
+            <div
+              onClick={onOpenMessageRoaming}
+              className="p-3.5 flex items-center justify-between hover:bg-white/5 cursor-pointer transition group"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <History size={15} />
+                </div>
+                <div>
+                  <div className="font-semibold text-white">消息漫游</div>
+                  <div className="text-[10px] text-white/40">可手动回溯与多设备云端同步历史聊天记录</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-purple-300 font-medium group-hover:text-white transition">
+                <span>{getRoamingLabel()}</span>
+                <ChevronRight size={14} className="text-white/40 group-hover:text-white transition" />
+              </div>
+            </div>
+
+            {/* 实名认证 */}
+            <div
+              onClick={onOpenRealNameAuth}
+              className="p-3.5 flex items-center justify-between hover:bg-white/5 cursor-pointer transition group"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center">
+                  <UserCheck size={15} />
+                </div>
+                <div>
+                  <div className="font-semibold text-white">实名认证</div>
+                  <div className="text-[10px] text-white/40">国家法规合规账号身份信息核验</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold group-hover:text-white transition">
+                {isRealNameVerified ? (
+                  <span className="text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-full border border-teal-500/20 text-[11px]">
+                    已认证 ({realName ? `*${realName.slice(-1)}` : '已完成'})
+                  </span>
+                ) : (
+                  <span className="text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 text-[11px]">
+                    未认证
+                  </span>
+                )}
+                <ChevronRight size={14} className="text-white/40 group-hover:text-white transition" />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Group 1: 交互与体验 */}
         <div className="space-y-1.5">
           <div className="text-[11px] font-semibold text-white/40 px-1 uppercase tracking-wider">
