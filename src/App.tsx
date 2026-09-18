@@ -21,6 +21,7 @@ import { EditProfileModal } from './components/EditProfileModal';
 import { loadAllIntimacies, saveIntimacy, getIntimacyData, addDailyChatIntimacy, AddChatIntimacyResult } from './utils/intimacy';
 import { ROLE_MEDIA_MAP } from './data/rolePortraits';
 import { DEFAULT_ROLES } from './data/rolesData';
+import { DEFAULT_STORYLINES, DEFAULT_THEATERS } from './data/storyTheaterPresetData';
 import {
   Home,
   MessageSquare,
@@ -43,6 +44,7 @@ import {
   Server,
   X,
   CheckCheck,
+  Copy,
   Plus,
   Sparkles,
   Radio,
@@ -52,6 +54,15 @@ import {
   Edit2,
   ShieldCheck,
   Users,
+  Gem,
+  Calendar,
+  Briefcase,
+  ShoppingBag,
+  ClipboardList,
+  Award,
+  Trophy,
+  Play,
+  Pause,
 } from 'lucide-react';
 
 const CATEGORIES = ['全部', '霸总', '温柔', '邻家', '病娇', '御姐', '学长', '治愈', '高冷', '阳光'];
@@ -545,6 +556,117 @@ export default function App() {
     };
   });
 
+  // New States for Profile Bottom Panel Dashboard (Gamelike experience with Diamonds, Attic, Tasks, and Showcase)
+  const [diamonds, setDiamonds] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('profile_diamonds');
+      if (saved !== null) return parseInt(saved, 10);
+    } catch {}
+    return 1; // Default to 1 as shown in the mockup image
+  });
+
+  const [dailyCheckedIn, setDailyCheckedIn] = useState<boolean>(() => {
+    return localStorage.getItem('daily_checked_in') === 'true';
+  });
+
+  const [profileActiveTab, setProfileActiveTab] = useState<'attic' | 'matters' | 'showcase'>('attic');
+  const [atticActiveSubTab, setAtticActiveSubTab] = useState<'roles' | 'stories' | 'theaters' | 'groupChats' | 'decorations'>('roles');
+
+  const [isAdLoading, setIsAdLoading] = useState<boolean>(false);
+  const [unlockedDecorations, setUnlockedDecorations] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('unlocked_decorations');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return ['dec_ljc_suit']; // First decoration unlocked by default
+  });
+
+  const [unlockedShowcase, setUnlockedShowcase] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('unlocked_showcase');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const [claimedTasks, setClaimedTasks] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('claimed_tasks');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const updateDiamonds = (newCount: number) => {
+    setDiamonds(newCount);
+    localStorage.setItem('profile_diamonds', String(newCount));
+  };
+
+  const handleUnlockDecoration = (decId: string, cost: number) => {
+    if (diamonds < cost) {
+      showToast('💎 您的钻石不足，请通过“每日福利”或“看视频”免费领钻吧！');
+      return;
+    }
+    updateDiamonds(diamonds - cost);
+    setUnlockedDecorations((prev) => {
+      const updated = [...prev, decId];
+      localStorage.setItem('unlocked_decorations', JSON.stringify(updated));
+      return updated;
+    });
+    showToast('✨ 成功解锁该角色服装装饰！可在详情里穿戴。');
+  };
+
+  const handleUnlockShowcase = (itemId: string, cost: number) => {
+    if (diamonds < cost) {
+      showToast('💎 您的钻石不足，请通过“每日福利”或“看视频”免费领钻吧！');
+      return;
+    }
+    updateDiamonds(diamonds - cost);
+    setUnlockedShowcase((prev) => {
+      const updated = [...prev, itemId];
+      localStorage.setItem('unlocked_showcase', JSON.stringify(updated));
+      return updated;
+    });
+    showToast('✨ 成功购买并解锁该橱窗商品！已添加至您的收藏。');
+  };
+
+  const handleClaimTask = (taskId: string, reward: number) => {
+    if (claimedTasks.includes(taskId)) return;
+    updateDiamonds(diamonds + reward);
+    setClaimedTasks((prev) => {
+      const updated = [...prev, taskId];
+      localStorage.setItem('claimed_tasks', JSON.stringify(updated));
+      return updated;
+    });
+    showToast(`🎉 成功领到任务奖励！钻石 💎 +${reward}！`);
+  };
+
+  const totalStoryCount = useMemo(() => {
+    let customCount = 0;
+    try {
+      const saved = localStorage.getItem('user_custom_storylines');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) customCount = parsed.length;
+      }
+    } catch {}
+    const defaultCount = Object.values(DEFAULT_STORYLINES).reduce((acc, curr) => acc + curr.length, 0);
+    return defaultCount + customCount;
+  }, []);
+
+  const totalTheaterCount = useMemo(() => {
+    let customCount = 0;
+    try {
+      const saved = localStorage.getItem('user_custom_theaters');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) customCount = parsed.length;
+      }
+    } catch {}
+    const defaultCount = Object.values(DEFAULT_THEATERS).reduce((acc, curr) => acc + curr.length, 0);
+    return defaultCount + customCount;
+  }, []);
+
   // Modals & Tools
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showRechargeModal, setShowRechargeModal] = useState<boolean>(false);
@@ -963,7 +1085,17 @@ export default function App() {
       return updated;
     });
     api.markAllAsRead();
-    showToast('已全部标为已读 ✨');
+    showToast('单聊已全部标为已读 ✨');
+  };
+
+  // Mark all group chats as read
+  const markAllGroupChatsAsRead = () => {
+    setGroupChats((prev) => {
+      const updated = prev.map((g) => ({ ...g, unread: 0 }));
+      localStorage.setItem('groupChats', JSON.stringify(updated));
+      return updated;
+    });
+    showToast('群聊已全部标为已读 ✨');
   };
 
   // Start chat with a role
@@ -1013,9 +1145,19 @@ export default function App() {
     return matchCategory && matchSearch;
   });
 
-  const totalUnread = useMemo(
+  const totalPrivateUnread = useMemo(
     () => conversations.reduce((acc, curr) => acc + (curr.unread || 0), 0),
     [conversations]
+  );
+
+  const totalGroupUnread = useMemo(
+    () => groupChats.reduce((acc, curr) => acc + (curr.unread || 0), 0),
+    [groupChats]
+  );
+
+  const totalUnread = useMemo(
+    () => totalPrivateUnread + totalGroupUnread,
+    [totalPrivateUnread, totalGroupUnread]
   );
 
   return (
@@ -1412,15 +1554,18 @@ export default function App() {
                   <span>发起群聊</span>
                 </button>
 
-                {totalUnread > 0 && (
-                  <button
-                    onClick={markAllConversationsAsRead}
-                    className="flex items-center gap-1 text-[11px] text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 px-2.5 py-1.5 rounded-full border border-purple-500/30 transition active:scale-95 cursor-pointer"
-                  >
-                    <CheckCheck size={13} />
-                    <span>已读</span>
-                  </button>
-                )}
+                <button
+                  onClick={messagesSubTab === 'private' ? markAllConversationsAsRead : markAllGroupChatsAsRead}
+                  disabled={messagesSubTab === 'private' ? totalPrivateUnread === 0 : totalGroupUnread === 0}
+                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1.5 rounded-full border transition active:scale-95 cursor-pointer ${
+                    (messagesSubTab === 'private' ? totalPrivateUnread > 0 : totalGroupUnread > 0)
+                      ? 'text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 border-purple-500/30'
+                      : 'text-white/30 bg-white/[0.02] border-white/5 opacity-40 cursor-not-allowed pointer-events-none'
+                  }`}
+                >
+                  <CheckCheck size={13} />
+                  <span>已读</span>
+                </button>
               </div>
             </div>
 
@@ -1436,7 +1581,7 @@ export default function App() {
                 }`}
               >
                 <MessageSquare size={13} />
-                <span>单聊私信 ({conversations.length})</span>
+                <span>单聊私信{totalPrivateUnread > 0 ? ` (${totalPrivateUnread})` : ''}</span>
               </button>
 
               <button
@@ -1449,8 +1594,8 @@ export default function App() {
                 }`}
               >
                 <Users size={13} />
-                <span>AI 派对群聊 ({groupChats.length})</span>
-                {groupChats.some((g) => g.unread > 0) && (
+                <span>AI 派对群聊{totalGroupUnread > 0 ? ` (${totalGroupUnread})` : ''}</span>
+                {totalGroupUnread > 0 && (
                   <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
                 )}
               </button>
@@ -1635,71 +1780,84 @@ export default function App() {
       {/* 5. PROFILE PAGE */}
       {currentPage === 'profile' && (
         <div id="page-profile" className="h-full overflow-y-auto pb-28 bg-[#0a0a0f] space-y-3.5">
-          {/* Top Profile Card */}
-          <div className="pt-6 pb-6 px-5 text-center bg-gradient-to-b from-[#2d1b4e] to-[#0a0a0f] border-b border-white/5 relative">
-            <div
-              onClick={() => setShowEditProfileModal(true)}
-              className="relative w-20 h-20 mx-auto mb-2.5 cursor-pointer group"
-            >
-              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-3xl border-2 border-white/20 shadow-xl overflow-hidden">
+          {/* Top Profile Card (Matching image layout with avatar on left, nickname + VIP badges, UID, bio, and dotted pills) */}
+          <div className="pt-6 pb-5 px-5 bg-gradient-to-b from-[#1b152b] via-[#120e1e] to-[#0a0a0f] border-b border-white/5 space-y-3">
+            {/* Header Main Row: Avatar + Info */}
+            <div className="flex items-start gap-3.5">
+              {/* Left Avatar */}
+              <div
+                onClick={() => setShowEditProfileModal(true)}
+                className="relative w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-500/30 via-pink-500/30 to-amber-500/20 border border-white/15 shadow-lg overflow-hidden shrink-0 cursor-pointer group hover:scale-105 transition flex items-center justify-center"
+              >
                 {userProfile.avatar && (userProfile.avatar.startsWith('http') || userProfile.avatar.startsWith('data:')) ? (
                   <img src={userProfile.avatar} alt="avatar" className="w-full h-full object-cover" />
                 ) : (
-                  userProfile.avatar || '😊'
+                  <span className="text-3xl">{userProfile.avatar || '😊'}</span>
                 )}
+                <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-pink-600 text-white flex items-center justify-center shadow-md border border-black/40 group-hover:scale-110 transition">
+                  <Camera size={10} />
+                </div>
               </div>
-              <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-pink-600 text-white flex items-center justify-center shadow-lg border border-black/40 group-hover:scale-110 transition">
-                <Camera size={12} />
+
+              {/* Right User Meta */}
+              <div className="flex-1 min-w-0 space-y-1.5 pt-0.5">
+                <h2
+                  onClick={() => setShowEditProfileModal(true)}
+                  className="text-base font-bold text-white truncate cursor-pointer hover:text-purple-300 transition"
+                >
+                  {userProfile.nickname || '小星星oAJICM08'}
+                </h2>
+
+                {/* VIP Membership Badges */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setVipInitialTier('silver');
+                      setCurrentPage('vip');
+                    }}
+                    className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-bold flex items-center gap-1 hover:bg-amber-500/30 active:scale-95 transition cursor-pointer"
+                  >
+                    <Crown size={10} className="text-amber-400 fill-amber-400 shrink-0" />
+                    <span>订阅会员</span>
+                    <span className="text-[8px] opacity-70">▶</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setVipInitialTier('platinum');
+                      setCurrentPage('vip');
+                    }}
+                    className="px-2 py-0.5 rounded-full bg-pink-500/20 border border-pink-400/40 text-pink-300 text-[10px] font-bold flex items-center gap-1 hover:bg-pink-500/30 active:scale-95 transition cursor-pointer"
+                  >
+                    <Sparkles size={10} className="text-pink-400 fill-pink-400 shrink-0" />
+                    <span>技能会员</span>
+                    <span className="text-[8px] opacity-70">▶</span>
+                  </button>
+                </div>
               </div>
             </div>
-            <h2
-              onClick={() => setShowEditProfileModal(true)}
-              className="text-lg font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer group inline-flex"
-            >
-              <span className="whitespace-nowrap">{userProfile.nickname}</span>
-              <Edit2 size={13} className="text-white/40 group-hover:text-pink-400 transition" />
-            </h2>
 
-            {userProfile.vip_status === 1 || userProfile.vip_level > 0 || (userProfile.vip_text && userProfile.vip_text !== '普通用户') ? (
-              <div className="flex items-center justify-center gap-2 mt-2.5">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setVipInitialTier('silver');
-                    setCurrentPage('vip');
-                  }}
-                  className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/25 via-amber-400/20 to-amber-500/10 border border-amber-400/50 text-amber-300 text-[11px] font-extrabold flex items-center gap-1 shadow-md shadow-amber-500/20 backdrop-blur-md whitespace-nowrap hover:scale-105 active:scale-95 transition cursor-pointer"
-                >
-                  <Crown size={12} className="text-amber-400 fill-amber-400 shrink-0" />
-                  <span>订阅会员</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setVipInitialTier('platinum');
-                    setCurrentPage('vip');
-                  }}
-                  className="px-3 py-1 rounded-full bg-gradient-to-r from-pink-500/25 via-purple-500/20 to-pink-400/10 border border-pink-400/50 text-pink-300 text-[11px] font-extrabold flex items-center gap-1 shadow-md shadow-amber-500/20 backdrop-blur-md whitespace-nowrap hover:scale-105 active:scale-95 transition cursor-pointer"
-                >
-                  <Sparkles size={12} className="text-pink-400 fill-pink-400 shrink-0" />
-                  <span>技能会员</span>
-                </button>
-              </div>
-            ) : (
+            {/* Bio Row */}
+            <div
+              onClick={() => setShowEditProfileModal(true)}
+              className="text-xs text-white/60 hover:text-white transition cursor-pointer pt-1"
+            >
+              {userProfile.bio || '点击填写你的简介吧'}
+            </div>
+
+            {/* Dotted Buttons Row */}
+            <div className="flex items-center gap-2 pt-1">
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setVipInitialTier('silver');
-                  setCurrentPage('vip');
-                }}
-                className="inline-flex items-center gap-1 mt-2.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/50 text-[11px] font-medium hover:bg-white/10 hover:text-white transition cursor-pointer"
+                onClick={() => setShowEditProfileModal(true)}
+                className="px-2.5 py-1 rounded-full border border-dashed border-white/20 hover:border-white/40 text-[11px] text-white/60 hover:text-white transition cursor-pointer flex items-center gap-1"
               >
-                <span>普通用户</span>
+                <span>+ 补充个人资料</span>
               </button>
-            )}
+            </div>
           </div>
 
           {/* Stats Bar */}
@@ -1718,89 +1876,94 @@ export default function App() {
             </div>
           </div>
 
-          {/* Menu Section 1 */}
-          <div className="mx-4 bg-white/[0.04] border border-white/10 rounded-2xl divide-y divide-white/5 overflow-hidden">
+          {/* Consolidated Menu Section */}
+          <div className="mx-4 bg-white/[0.02] border border-white/5 rounded-2xl divide-y divide-white/5 overflow-hidden shadow-lg">
+            {/* 我的关注 */}
             <div
               onClick={() => setCurrentPage('follows')}
-              className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition"
+              className="flex items-center justify-between p-4 hover:bg-white/[0.02] cursor-pointer transition"
             >
               <div className="flex items-center gap-3">
-                <Heart size={17} className="text-pink-400" />
-                <span className="text-xs font-medium text-white">我的关注</span>
+                <Heart size={16} className="text-pink-400 fill-pink-400/10" />
+                <span className="text-xs font-semibold text-white/90">我的关注</span>
               </div>
               <div className="flex items-center gap-1.5 text-white/40 text-xs">
-                <span className="px-1.5 py-0.2 rounded-full bg-pink-500/20 text-pink-300 text-[11px]">
+                <span className="px-2 py-0.5 rounded-full bg-pink-500/15 text-pink-300 text-[10px] font-bold">
                   {followedRoles.length}
                 </span>
-                <ChevronRight size={14} />
+                <ChevronRight size={14} className="text-white/25" />
               </div>
             </div>
 
+            {/* 会员中心 */}
             <div
               onClick={() => setCurrentPage('vip')}
-              className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition"
+              className="flex items-center justify-between p-4 hover:bg-white/[0.02] cursor-pointer transition"
             >
               <div className="flex items-center gap-3">
-                <Crown size={17} className="text-amber-400" />
-                <span className="text-xs font-medium text-white">会员中心</span>
+                <Crown size={16} className="text-amber-400 fill-amber-400/10" />
+                <span className="text-xs font-semibold text-white/90">会员中心</span>
               </div>
               <div className="flex items-center gap-1 text-white/40 text-xs">
-                <span className="text-[11px] text-amber-300/80">尊享特权</span>
-                <ChevronRight size={14} />
+                <span className="text-[10px] text-amber-400/90 font-bold bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">尊享特权</span>
+                <ChevronRight size={14} className="text-white/25" />
               </div>
             </div>
 
+            {/* 我的钱包 */}
             <div
               onClick={() => setCurrentPage('wallet')}
-              className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition"
+              className="flex items-center justify-between p-4 hover:bg-white/[0.02] cursor-pointer transition"
             >
               <div className="flex items-center gap-3">
-                <Wallet size={17} className="text-emerald-400" />
-                <span className="text-xs font-medium text-white">我的钱包</span>
+                <Wallet size={16} className="text-emerald-400 fill-emerald-400/10" />
+                <span className="text-xs font-semibold text-white/90">我的钱包</span>
               </div>
               <div className="flex items-center gap-1 text-white/40 text-xs">
-                <span className="text-[11px] text-emerald-400 font-mono">
+                <span className="text-[10px] text-emerald-400 font-bold font-mono bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20">
                   ¥ {userProfile.money.toFixed(2)}
                 </span>
-                <ChevronRight size={14} />
+                <ChevronRight size={14} className="text-white/25" />
               </div>
             </div>
-          </div>
 
-          {/* Menu Section 2 */}
-          <div className="mx-4 bg-white/[0.04] border border-white/10 rounded-2xl divide-y divide-white/5 overflow-hidden">
+            {/* 设置 */}
             <div
               onClick={() => setCurrentPage('settings')}
-              className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition"
+              className="flex items-center justify-between p-4 hover:bg-white/[0.02] cursor-pointer transition"
             >
               <div className="flex items-center gap-3">
-                <Settings size={17} className="text-gray-400" />
-                <span className="text-xs font-medium text-white">设置</span>
+                <Settings size={16} className="text-gray-400" />
+                <span className="text-xs font-semibold text-white/90">设置</span>
               </div>
-              <ChevronRight size={14} className="text-white/40" />
+              <ChevronRight size={14} className="text-white/25" />
             </div>
 
+            {/* 帮助与反馈 */}
             <div
               onClick={() => setCurrentPage('help')}
-              className="flex items-center justify-between p-3.5 hover:bg-white/5 cursor-pointer transition"
+              className="flex items-center justify-between p-4 hover:bg-white/[0.02] cursor-pointer transition"
             >
               <div className="flex items-center gap-3">
-                <HelpCircle size={17} className="text-blue-400" />
-                <span className="text-xs font-medium text-white">帮助与反馈</span>
+                <HelpCircle size={16} className="text-blue-400" />
+                <span className="text-xs font-semibold text-white/90">帮助与反馈</span>
               </div>
-              <ChevronRight size={14} className="text-white/40" />
+              <ChevronRight size={14} className="text-white/25" />
             </div>
 
+            {/* 退出登录 */}
             <div
               onClick={handleLogout}
-              className="flex items-center justify-between p-3.5 hover:bg-red-500/10 cursor-pointer transition text-red-400"
+              className="flex items-center justify-between p-4 hover:bg-red-500/5 cursor-pointer transition text-red-400/90"
             >
               <div className="flex items-center gap-3">
-                <LogOut size={17} />
-                <span className="text-xs font-medium">退出登录</span>
+                <LogOut size={16} className="text-red-400" />
+                <span className="text-xs font-semibold">退出登录</span>
               </div>
+              <ChevronRight size={14} className="text-red-400/30" />
             </div>
           </div>
+
         </div>
       )}
 
