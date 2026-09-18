@@ -272,27 +272,44 @@ export const DetailModal: React.FC<DetailModalProps> = ({
 
         {/* TAB 1: 关于Ta (简单流畅背景人设) */}
         {activeTab === 'about' && (
-          <div className="space-y-4 animate-fadeIn">
+          <div className="space-y-3 animate-fadeIn">
             {/* Simple Background Bio Description */}
-            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2">
-              <h3 className="text-xs font-extrabold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
-                <User size={13} />
+            <div className="py-2.5 px-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
+              <h3 className="text-[11px] font-extrabold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                <User size={12} />
                 <span>背景描述与人设</span>
               </h3>
-              <p className="text-sm text-white/85 leading-relaxed font-light">
+              <p className="text-xs text-white/85 leading-relaxed font-light">
                 {role.desc}
               </p>
             </div>
 
-            {/* Intimacy / Affection Card */}
+            {/* Personality Tags (Moved UP right after background description) */}
+            <div className="pt-0.5">
+              <h3 className="text-[11px] font-bold text-white/50 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                <span>性格标签</span>
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {role.tags.map((t, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2.5 py-1 rounded-full bg-white/8 text-white/85 text-[11px] font-medium border border-white/5 hover:border-purple-500/40 transition"
+                  >
+                    #{t}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Intimacy / Affection Card (Slimmer & Compact) */}
             <div
               onClick={() => setShowIntimacyModal(true)}
-              className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-900/25 via-pink-950/20 to-purple-900/20 border border-purple-500/30 cursor-pointer hover:border-purple-500/50 transition group"
+              className="py-2 px-3 rounded-xl bg-gradient-to-r from-purple-900/25 via-pink-950/20 to-purple-900/20 border border-purple-500/30 cursor-pointer hover:border-purple-500/50 transition group shadow-sm"
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-xl bg-pink-500/20 text-pink-300 flex items-center justify-center text-sm shadow-sm">
-                    <Heart size={15} className="fill-pink-500 text-pink-500" />
+                  <div className="w-6 h-6 rounded-lg bg-pink-500/20 text-pink-300 flex items-center justify-center text-xs shadow-sm shrink-0">
+                    <Heart size={13} className="fill-pink-500 text-pink-500" />
                   </div>
                   <div>
                     <span className="text-xs font-bold text-white flex items-center gap-1">
@@ -304,12 +321,12 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                     </span>
                   </div>
                 </div>
-                <span className="text-[11px] text-pink-300 group-hover:translate-x-0.5 transition">
+                <span className="text-[10px] text-pink-300 group-hover:translate-x-0.5 transition shrink-0">
                   羁绊特权 ›
                 </span>
               </div>
 
-              <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden p-0.5">
+              <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden p-0.5">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-pink-500 to-purple-500 transition-all duration-500"
                   style={{ width: `${intimacyPercent}%` }}
@@ -318,33 +335,18 @@ export const DetailModal: React.FC<DetailModalProps> = ({
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-3 divide-x divide-white/10 bg-white/[0.03] border border-white/5 rounded-2xl py-3.5">
+            <div className="grid grid-cols-3 divide-x divide-white/10 bg-white/[0.03] border border-white/5 rounded-xl py-2">
               <div className="text-center">
-                <div className="text-lg font-bold text-white">{role.users}</div>
-                <div className="text-[11px] text-white/40 mt-0.5">聊过的人</div>
+                <div className="text-base font-bold text-white">{role.users}</div>
+                <div className="text-[10px] text-white/40 mt-0.5">聊过的人</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-white">{role.follows}</div>
-                <div className="text-[11px] text-white/40 mt-0.5">已关注</div>
+                <div className="text-base font-bold text-white">{role.follows}</div>
+                <div className="text-[10px] text-white/40 mt-0.5">已关注</div>
               </div>
               <div className="text-center">
-                <div className="text-lg font-bold text-emerald-400">99.8%</div>
-                <div className="text-[11px] text-white/40 mt-0.5">好评率</div>
-              </div>
-            </div>
-
-            {/* Personality Tags */}
-            <div>
-              <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">性格标签</h3>
-              <div className="flex flex-wrap gap-2">
-                {role.tags.map((t, idx) => (
-                  <span
-                    key={idx}
-                    className="px-3 py-1 rounded-full bg-white/8 text-white/85 text-xs font-medium border border-white/5 hover:border-purple-500/40 transition"
-                  >
-                    #{t}
-                  </span>
-                ))}
+                <div className="text-base font-bold text-emerald-400">99.8%</div>
+                <div className="text-[10px] text-white/40 mt-0.5">好评率</div>
               </div>
             </div>
 
@@ -389,10 +391,16 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                     <span>已解锁</span>
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 text-[10px] font-bold border border-pink-500/30 flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      setSelectedTool(null);
+                      setShowUnlockConfirm(true);
+                    }}
+                    className="px-2.5 py-1 rounded-full bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-[10px] font-bold border border-pink-500/30 flex items-center gap-1 transition active:scale-95"
+                  >
                     <Lock size={10} />
-                    <span>充值解锁</span>
-                  </span>
+                    <span>去解锁</span>
+                  </button>
                 )}
               </div>
 
@@ -427,13 +435,16 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                       <div className="min-w-0 flex-1">
                         <div className="text-xs font-bold text-white flex items-center justify-between">
                           <span className="truncate">{tool.shortName}</span>
-                          {tool.isFree ? (
+                          {isAccessible ? (
                             <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30 shrink-0 ml-1">
-                              免费
+                              已解锁
                             </span>
-                          ) : !isUnlocked ? (
-                            <Lock size={10} className="text-pink-400 shrink-0 ml-1" />
-                          ) : null}
+                          ) : (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30 shrink-0 ml-1 flex items-center gap-0.5">
+                              <Lock size={9} />
+                              <span>未解锁</span>
+                            </span>
+                          )}
                         </div>
                         <div className="text-[10px] text-white/40 truncate mt-0.5">{tool.desc}</div>
                       </div>
@@ -468,20 +479,20 @@ export const DetailModal: React.FC<DetailModalProps> = ({
             </div>
 
             {/* List of Storylines */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {storylines.map((st) => (
                 <div
                   key={st.id}
-                  className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-purple-500/40 transition space-y-2 group"
+                  className="p-3 rounded-xl bg-white/[0.03] border border-white/10 hover:border-purple-500/40 transition space-y-1.5 group"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-extrabold text-white group-hover:text-purple-300 transition">
+                      <span className="text-xs font-extrabold text-white group-hover:text-purple-300 transition">
                         {st.title}
                       </span>
                       {st.isCustom && (
-                        <span className="text-[9px] px-2 py-0.2 rounded-full bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
-                          AI 专属定制
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
+                          AI 定制
                         </span>
                       )}
                     </div>
@@ -490,18 +501,18 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                     </span>
                   </div>
 
-                  <p className="text-xs text-white/60 leading-relaxed font-light line-clamp-2">
+                  <p className="text-[11px] text-white/60 leading-relaxed font-light line-clamp-2">
                     {st.summary}
                   </p>
 
-                  <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[11px] text-white/40">
+                  <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[10px] text-white/40">
                     <span>作者：{st.author}</span>
                     <button
                       onClick={() => setActiveStory(st)}
-                      className="px-3 py-1 rounded-xl bg-purple-600/30 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/30 text-xs font-bold transition flex items-center gap-1"
+                      className="px-2.5 py-0.5 rounded-lg bg-purple-600/30 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/30 text-[11px] font-bold transition flex items-center gap-0.5"
                     >
                       <span>进入故事线</span>
-                      <ChevronRight size={13} />
+                      <ChevronRight size={12} />
                     </button>
                   </div>
                 </div>
@@ -533,22 +544,22 @@ export const DetailModal: React.FC<DetailModalProps> = ({
             </div>
 
             {/* List of Mini-Theaters */}
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {theaters.map((th) => (
                 <div
                   key={th.id}
                   onClick={() => setActiveTheater(th)}
-                  className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-pink-500/40 transition flex gap-3 cursor-pointer group relative overflow-hidden"
+                  className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 hover:border-pink-500/40 transition flex gap-2.5 cursor-pointer group relative overflow-hidden"
                 >
-                  <div className="w-24 h-20 rounded-xl overflow-hidden shrink-0 relative bg-black/40 border border-white/10">
+                  <div className="w-20 h-16 rounded-lg overflow-hidden shrink-0 relative bg-black/40 border border-white/10">
                     <img
                       src={th.bgImage}
                       alt={th.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                     />
                     <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                      <div className="w-7 h-7 rounded-full bg-purple-600/80 text-white flex items-center justify-center shadow-lg">
-                        <Play size={14} className="ml-0.5" />
+                      <div className="w-6 h-6 rounded-full bg-purple-600/80 text-white flex items-center justify-center shadow-md">
+                        <Play size={12} className="ml-0.5" />
                       </div>
                     </div>
                   </div>
@@ -731,25 +742,15 @@ export const DetailModal: React.FC<DetailModalProps> = ({
 
               <div className="space-y-2">
                 <button
-                  onClick={handleUnlockClick}
+                  onClick={() => {
+                    setShowUnlockConfirm(false);
+                    if (onOpenRecharge) onOpenRecharge();
+                  }}
                   className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:opacity-95 text-white text-sm font-extrabold shadow-lg shadow-purple-500/30 active:scale-95 transition flex items-center justify-center gap-2"
                 >
                   <Zap size={16} className="fill-white" />
-                  <span>⚡ 充值 ¥10 / 钻石一键解锁特权</span>
+                  <span>去解锁功能</span>
                 </button>
-
-                {onOpenRecharge && (
-                  <button
-                    onClick={() => {
-                      setShowUnlockConfirm(false);
-                      onOpenRecharge();
-                    }}
-                    className="w-full py-2.5 text-xs font-semibold text-white/50 hover:text-white flex items-center justify-center gap-1.5 transition"
-                  >
-                    <CreditCard size={13} />
-                    <span>前往网巢充值中心选购其它档位 ›</span>
-                  </button>
-                )}
               </div>
             </div>
           </div>

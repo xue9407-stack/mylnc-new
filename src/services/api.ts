@@ -373,7 +373,7 @@ export const api = {
           money: 128.5,
           score: 328,
           vip_level: 1,
-          vip_text: '💎 黄金会员',
+          vip_text: '💎 订阅&技能双会员',
           vip_status: 1,
         };
         return {
@@ -470,7 +470,7 @@ export const api = {
         money: 128.5,
         score: 328,
         vip_level: 1,
-        vip_text: '💎 黄金会员',
+        vip_text: '💎 订阅&技能双会员',
         vip_status: 1,
       };
       return {

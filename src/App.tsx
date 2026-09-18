@@ -46,6 +46,7 @@ import {
   Compass,
   Camera,
   Edit2,
+  ShieldCheck,
 } from 'lucide-react';
 
 const CATEGORIES = ['全部', '霸总', '温柔', '邻家', '病娇', '御姐', '学长', '治愈', '高冷', '阳光'];
@@ -86,6 +87,7 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('全部');
   const [homeSearchKeyword, setHomeSearchKeyword] = useState<string>('');
   const [exploreKeyword, setExploreKeyword] = useState<string>('');
+  const [vipInitialTier, setVipInitialTier] = useState<'silver' | 'platinum'>('silver');
   const [homeTopTab, setHomeTopTab] = useState<'recommend' | 'theater' | 'original' | 'game'>('recommend');
   const [hasUnreadMoments, setHasUnreadMoments] = useState<boolean>(() => {
     return localStorage.getItem('hasUnreadMoments') !== 'false';
@@ -153,7 +155,13 @@ export default function App() {
       const stored = localStorage.getItem(`profile_${savedUser}`);
       if (stored) {
         try {
-          return JSON.parse(stored);
+          const parsed = JSON.parse(stored);
+          if (parsed.vip_text && (parsed.vip_text.includes('黄金') || parsed.vip_text.includes('双会员') || parsed.vip_level > 0 || parsed.vip_status === 1)) {
+            parsed.vip_text = '💎 订阅&技能双会员';
+            parsed.vip_status = 1;
+            parsed.vip_level = 1;
+          }
+          return parsed;
         } catch {}
       }
       if (savedUser === 'admin' || savedUser === '网巢体验官') {
@@ -165,7 +173,7 @@ export default function App() {
           money: 128.5,
           score: 328,
           vip_level: 1,
-          vip_text: '💎 黄金会员',
+          vip_text: '💎 订阅&技能双会员',
           vip_status: 1,
         };
       }
@@ -176,21 +184,21 @@ export default function App() {
         avatar: '😊',
         money: 0.00,
         score: 0,
-        vip_level: 0,
-        vip_text: '普通用户',
-        vip_status: 0,
+        vip_level: 1,
+        vip_text: '💎 订阅&技能双会员',
+        vip_status: 1,
       };
     }
     return {
-      id: 0,
-      username: '',
-      nickname: '未登录',
+      id: 10086,
+      username: 'admin',
+      nickname: '网巢体验官',
       avatar: '😊',
-      money: 0,
-      score: 0,
-      vip_level: 0,
-      vip_text: '普通用户',
-      vip_status: 0,
+      money: 128.5,
+      score: 328,
+      vip_level: 1,
+      vip_text: '💎 订阅&技能双会员',
+      vip_status: 1,
     };
   });
 
@@ -198,6 +206,56 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showRechargeModal, setShowRechargeModal] = useState<boolean>(false);
   const [showEditProfileModal, setShowEditProfileModal] = useState<boolean>(false);
+
+  // Wallet page states
+  const [walletSelectedAmount, setWalletSelectedAmount] = useState<number>(30);
+  const [isCustomWalletAmount, setIsCustomWalletAmount] = useState<boolean>(false);
+  const [customWalletInput, setCustomWalletInput] = useState<string>('50');
+  const [walletPayMethod, setWalletPayMethod] = useState<'wechat' | 'alipay' | 'sim'>('wechat');
+  const [isWalletCharging, setIsWalletCharging] = useState<boolean>(false);
+  const [walletTransactions, setWalletTransactions] = useState<Array<{ date: string; name: string; amount: string; positive: boolean }>>([
+    { date: '10-01', name: '会员充值返现', amount: '+¥30.00', positive: true },
+    { date: '09-28', name: '打赏角色咖啡', amount: '-¥6.00', positive: false },
+    { date: '09-25', name: '微信快捷充值', amount: '+¥68.00', positive: true },
+  ]);
+
+  const effectiveWalletAmount = isCustomWalletAmount
+    ? Math.max(1, parseFloat(customWalletInput) || 0)
+    : walletSelectedAmount;
+
+  const handleInlineWalletRecharge = () => {
+    const chargeVal = effectiveWalletAmount;
+    if (chargeVal <= 0) {
+      showToast('请输入有效的充值金额！');
+      return;
+    }
+    setIsWalletCharging(true);
+    setTimeout(() => {
+      setIsWalletCharging(false);
+
+      setUserProfile((prev) => ({
+        ...prev,
+        money: prev.money + chargeVal,
+      }));
+
+      const now = new Date();
+      const monthStr = (now.getMonth() + 1).toString().padStart(2, '0');
+      const dayStr = now.getDate().toString().padStart(2, '0');
+      const payName = walletPayMethod === 'wechat' ? '微信充值' : walletPayMethod === 'alipay' ? '支付宝充值' : '快捷卡充值';
+
+      setWalletTransactions((prev) => [
+        {
+          date: `${monthStr}-${dayStr}`,
+          name: payName,
+          amount: `+¥${chargeVal.toFixed(2)}`,
+          positive: true,
+        },
+        ...prev,
+      ]);
+
+      showToast(`🎉 充值 ¥${chargeVal.toFixed(2)} 成功！已实时到账`);
+    }, 600);
+  };
 
   // Helper: Toast Message
   const showToast = (msg: string) => {
@@ -1120,11 +1178,11 @@ export default function App() {
       {currentPage === 'profile' && (
         <div id="page-profile" className="h-full overflow-y-auto pb-28 bg-[#0a0a0f] space-y-3.5">
           {/* Top Profile Card */}
-          <div
-            onClick={() => setShowEditProfileModal(true)}
-            className="pt-6 pb-6 px-5 text-center bg-gradient-to-b from-[#2d1b4e] to-[#0a0a0f] border-b border-white/5 cursor-pointer group hover:bg-white/[0.02] transition relative"
-          >
-            <div className="relative w-20 h-20 mx-auto mb-2.5">
+          <div className="pt-6 pb-6 px-5 text-center bg-gradient-to-b from-[#2d1b4e] to-[#0a0a0f] border-b border-white/5 relative">
+            <div
+              onClick={() => setShowEditProfileModal(true)}
+              className="relative w-20 h-20 mx-auto mb-2.5 cursor-pointer group"
+            >
               <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-3xl border-2 border-white/20 shadow-xl overflow-hidden">
                 {userProfile.avatar && (userProfile.avatar.startsWith('http') || userProfile.avatar.startsWith('data:')) ? (
                   <img src={userProfile.avatar} alt="avatar" className="w-full h-full object-cover" />
@@ -1136,13 +1194,54 @@ export default function App() {
                 <Camera size={12} />
               </div>
             </div>
-            <h2 className="text-lg font-bold text-white flex items-center justify-center gap-1.5">
-              {userProfile.nickname}
+            <h2
+              onClick={() => setShowEditProfileModal(true)}
+              className="text-lg font-bold text-white flex items-center justify-center gap-1.5 cursor-pointer group inline-flex"
+            >
+              <span className="whitespace-nowrap">{userProfile.nickname}</span>
               <Edit2 size={13} className="text-white/40 group-hover:text-pink-400 transition" />
             </h2>
-            <div className="inline-block mt-2 px-3 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-semibold">
-              {userProfile.vip_text}
-            </div>
+
+            {userProfile.vip_status === 1 || userProfile.vip_level > 0 || (userProfile.vip_text && userProfile.vip_text !== '普通用户') ? (
+              <div className="flex items-center justify-center gap-2 mt-2.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setVipInitialTier('silver');
+                    setCurrentPage('vip');
+                  }}
+                  className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500/25 via-amber-400/20 to-amber-500/10 border border-amber-400/50 text-amber-300 text-[11px] font-extrabold flex items-center gap-1 shadow-md shadow-amber-500/20 backdrop-blur-md whitespace-nowrap hover:scale-105 active:scale-95 transition cursor-pointer"
+                >
+                  <Crown size={12} className="text-amber-400 fill-amber-400 shrink-0" />
+                  <span>订阅会员</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setVipInitialTier('platinum');
+                    setCurrentPage('vip');
+                  }}
+                  className="px-3 py-1 rounded-full bg-gradient-to-r from-pink-500/25 via-purple-500/20 to-pink-400/10 border border-pink-400/50 text-pink-300 text-[11px] font-extrabold flex items-center gap-1 shadow-md shadow-pink-500/20 backdrop-blur-md whitespace-nowrap hover:scale-105 active:scale-95 transition cursor-pointer"
+                >
+                  <Sparkles size={12} className="text-pink-400 fill-pink-400 shrink-0" />
+                  <span>技能会员</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setVipInitialTier('silver');
+                  setCurrentPage('vip');
+                }}
+                className="inline-flex items-center gap-1 mt-2.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white/50 text-[11px] font-medium hover:bg-white/10 hover:text-white transition cursor-pointer"
+              >
+                <span>普通用户</span>
+              </button>
+            )}
           </div>
 
           {/* Stats Bar */}
@@ -1312,9 +1411,10 @@ export default function App() {
       {currentPage === 'vip' && (
         <VipView
           userProfile={userProfile}
+          initialTier={vipInitialTier}
           onBack={() => setCurrentPage('profile')}
           onShowToast={showToast}
-          onRechargeModal={() => setShowRechargeModal(true)}
+          onRechargeModal={() => setCurrentPage('wallet')}
         />
       )}
 
@@ -1324,43 +1424,156 @@ export default function App() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setCurrentPage('profile')}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-white/70"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:bg-white/10 transition"
             >
               <ArrowLeft size={18} />
             </button>
             <h2 className="text-base font-bold text-white">我的钱包</h2>
           </div>
 
-          <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-xl">
-            <div className="text-xs text-white/70">可用余额（元）</div>
-            <div className="text-3xl font-extrabold my-2 font-mono">
-              ¥ {userProfile.money.toFixed(2)}
+          {/* Balance Card */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white shadow-xl relative overflow-hidden">
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="text-xs text-white/80 font-medium">可用余额（元）</div>
+                <div className="text-3xl font-extrabold my-2 font-mono tracking-tight">
+                  ¥ {userProfile.money.toFixed(2)}
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold text-white flex items-center gap-1">
+                <ShieldCheck size={12} />
+                <span>实时到账 · 安全加密</span>
+              </span>
             </div>
-            <div className="flex gap-2 mt-3">
-              <button
-                onClick={() => setShowRechargeModal(true)}
-                className="px-5 py-1.5 rounded-full bg-white text-purple-700 text-xs font-bold hover:bg-white/90 active:scale-95 transition"
-              >
-                充值
-              </button>
+            <div className="text-[11px] text-white/70 mt-1">
+              账户余额可用于解锁高级对话、专属语音及功能特权
             </div>
           </div>
 
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <h4 className="text-xs font-bold text-white/70 mb-2">最近交易明细</h4>
-            <div className="space-y-2 text-xs text-white/60">
-              <div className="flex justify-between py-1 border-b border-white/5">
-                <span>10-01 会员充值返现</span>
-                <span className="text-emerald-400 font-mono">+¥30.00</span>
+          {/* Integrated Wallet Recharge Panel */}
+          <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between text-xs font-bold text-white">
+              <span>选择充值金额</span>
+              <span className="text-[10px] text-purple-400 font-normal">支持自定义金额 · 实时到账</span>
+            </div>
+
+            {/* Preset Amount Grid + Custom Option */}
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { value: 10 },
+                { value: 30 },
+                { value: 68 },
+                { value: 128 },
+              ].map((item) => {
+                const isSelected = !isCustomWalletAmount && walletSelectedAmount === item.value;
+                return (
+                  <button
+                    key={item.value}
+                    onClick={() => {
+                      setIsCustomWalletAmount(false);
+                      setWalletSelectedAmount(item.value);
+                    }}
+                    className={`p-3 rounded-xl border text-left relative transition-all ${
+                      isSelected
+                        ? 'bg-purple-600/25 border-purple-400 text-purple-200 shadow-lg shadow-purple-500/10 ring-1 ring-purple-400/40'
+                        : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.08] text-white/80'
+                    }`}
+                  >
+                    <div className="text-base font-black font-mono text-white">¥ {item.value}.00</div>
+                    <div className="text-[10px] text-white/50 mt-1">
+                      到账 ¥{item.value}.00
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Custom Amount Section */}
+            <div className="pt-1">
+              <button
+                onClick={() => setIsCustomWalletAmount(true)}
+                className={`w-full p-3 rounded-xl border text-left flex items-center justify-between transition ${
+                  isCustomWalletAmount
+                    ? 'bg-purple-600/25 border-purple-400 ring-1 ring-purple-400/40'
+                    : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.08]'
+                }`}
+              >
+                <span className="text-xs font-bold text-white">自选/自定义充值金额</span>
+                <span className="text-[10px] text-purple-300">任意金额 · 实时全额到账</span>
+              </button>
+
+              {isCustomWalletAmount && (
+                <div className="mt-2.5 p-3 rounded-xl bg-white/[0.03] border border-white/10 flex items-center gap-3 animate-fadeIn">
+                  <span className="text-sm font-bold text-purple-400 font-mono">¥</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10000"
+                    value={customWalletInput}
+                    onChange={(e) => setCustomWalletInput(e.target.value)}
+                    placeholder="请输入充值金额"
+                    className="w-full bg-transparent text-white font-mono font-bold text-base outline-none placeholder:text-white/30"
+                  />
+                  <span className="text-xs text-emerald-400 font-medium whitespace-nowrap font-mono">
+                    到账 ¥{effectiveWalletAmount.toFixed(2)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Pay Channel Selection */}
+            <div className="pt-1">
+              <div className="text-[11px] font-medium text-white/40 mb-1.5">选择支付方式</div>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'wechat', icon: '💬', name: '微信支付' },
+                  { id: 'alipay', icon: '🔹', name: '支付宝' },
+                  { id: 'sim', icon: '💳', name: '快捷卡' },
+                ].map((ch) => {
+                  const isSelected = walletPayMethod === ch.id;
+                  return (
+                    <button
+                      key={ch.id}
+                      onClick={() => setWalletPayMethod(ch.id as any)}
+                      className={`p-2 rounded-xl border flex items-center justify-center gap-1 transition ${
+                        isSelected
+                          ? 'bg-white/10 border-white/30 text-white font-bold'
+                          : 'bg-white/[0.02] border-white/5 text-white/50 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-xs">{ch.icon}</span>
+                      <span className="text-[11px]">{ch.name}</span>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="flex justify-between py-1 border-b border-white/5">
-                <span>09-28 打赏角色咖啡</span>
-                <span className="text-pink-400 font-mono">-¥6.00</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span>09-25 微信快捷充值</span>
-                <span className="text-emerald-400 font-mono">+¥68.00</span>
-              </div>
+            </div>
+
+            {/* Submit Topup */}
+            <button
+              onClick={handleInlineWalletRecharge}
+              disabled={isWalletCharging || effectiveWalletAmount <= 0}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-500 via-pink-500 to-amber-400 text-slate-950 text-xs font-extrabold shadow-lg active:scale-95 transition disabled:opacity-50"
+            >
+              {isWalletCharging ? '充值处理中...' : `确认充值 ¥${effectiveWalletAmount.toFixed(2)}`}
+            </button>
+          </div>
+
+          {/* Transactions List */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+            <h4 className="text-xs font-bold text-white/70 mb-3">最近交易明细</h4>
+            <div className="space-y-2.5 text-xs">
+              {walletTransactions.map((tx, idx) => (
+                <div key={idx} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-white/40 font-mono">{tx.date}</span>
+                    <span className="text-white/80 font-medium">{tx.name}</span>
+                  </div>
+                  <span className={`font-mono font-bold ${tx.positive ? 'text-emerald-400' : 'text-pink-400'}`}>
+                    {tx.amount}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -1512,7 +1725,10 @@ export default function App() {
         onUpdateIntimacy={(added) => {
           if (detailRole) handleUpdateIntimacy(detailRole.id, added);
         }}
-        onOpenRecharge={() => setShowRechargeModal(true)}
+        onOpenRecharge={() => {
+          setDetailRole(null);
+          setCurrentPage('vip');
+        }}
         onDeductMoney={(amount) => {
           if (userProfile.money < amount) return false;
           setUserProfile((prev) => ({

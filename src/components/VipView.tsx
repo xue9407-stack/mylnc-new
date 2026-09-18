@@ -14,6 +14,19 @@ import {
   Gift,
   HelpCircle,
   Star,
+  Clock,
+  Bell,
+  RotateCcw,
+  ImageIcon,
+  Clapperboard,
+  BookOpen,
+  FileText,
+  Volume2,
+  GraduationCap,
+  Share2,
+  Plus,
+  Coins,
+  Flame
 } from 'lucide-react';
 import { UserProfile } from '../types';
 
@@ -22,17 +35,7 @@ interface VipViewProps {
   onBack: () => void;
   onShowToast: (msg: string) => void;
   onRechargeModal: () => void;
-}
-
-interface PlanOption {
-  id: string;
-  name: string;
-  price: number;
-  originalPrice: number;
-  unit: string;
-  tag?: string;
-  popular?: boolean;
-  desc: string;
+  initialTier?: 'silver' | 'platinum';
 }
 
 export const VipView: React.FC<VipViewProps> = ({
@@ -40,363 +43,615 @@ export const VipView: React.FC<VipViewProps> = ({
   onBack,
   onShowToast,
   onRechargeModal,
+  initialTier = 'silver',
 }) => {
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('lifetime');
-  const [activeFaq, setActiveFaq] = useState<number | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // VIP Level: 'silver' | 'platinum'
+  const [activeTier, setActiveTier] = useState<'silver' | 'platinum'>(initialTier);
+  
+  // Duration: 'monthly' | 'quarterly' | 'yearly'
+  const [selectedDuration, setSelectedDuration] = useState<'monthly' | 'quarterly' | 'yearly'>('quarterly');
 
-  const plans: PlanOption[] = [
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
+
+  // Pricing configuration
+  const SILVER_PLANS = [
     {
       id: 'monthly',
-      name: '连续包月',
-      price: 18,
+      name: '月卡',
       originalPrice: 30,
-      unit: '/月',
-      desc: '灵活体验，支持随时取消',
+      discountPrice: 20.4,
+      discountText: '新用户 6.8折',
+      dailyChat: '每天 400 次',
+      imageLimit: '10次 / 月',
+      theaterLimit: '1次 / 月',
+      storyLimit: '1次 / 月',
+      desc: '入门精选 · 更多消息漫游',
     },
     {
       id: 'quarterly',
-      name: '连续包季',
-      price: 48,
+      name: '季卡',
       originalPrice: 90,
-      unit: '/季',
+      discountPrice: 61.2,
+      discountText: '新用户 6.8折 · 爆款推荐',
+      dailyChat: '每天 600 次',
+      imageLimit: '15次 / 月',
+      theaterLimit: '3次 / 月',
+      storyLimit: '3次 / 月',
       popular: true,
-      tag: '爆款 · 折合 ¥16/月',
-      desc: '赠双倍好感度加速',
+      desc: '性价比之王 · 极速生成',
     },
     {
       id: 'yearly',
-      name: '连续包年',
-      price: 98,
-      originalPrice: 216,
-      unit: '/年',
-      tag: '立省 ¥118 · 低至 ¥8/月',
-      desc: '尊享整年无限畅聊特权',
-    },
-    {
-      id: 'lifetime',
-      name: '终身尊享卡',
-      price: 168,
-      originalPrice: 368,
-      unit: '/终身',
-      tag: '一次付费 · 永久终身有效',
-      desc: '永久解锁全场角色与全部特权',
+      name: '年卡',
+      originalPrice: 360,
+      discountPrice: 244.8,
+      discountText: '新用户 6.8折 · 超值首选',
+      dailyChat: '每天 800 次',
+      imageLimit: '20次 / 月',
+      theaterLimit: '5次 / 季',
+      storyLimit: '5次 / 季',
+      desc: '全年畅享 · 最高权益额度',
     },
   ];
 
-  const currentPlan = plans.find((p) => p.id === selectedPlanId) || plans[2];
+  const PLATINUM_PLANS = [
+    {
+      id: 'monthly',
+      name: '月卡',
+      originalPrice: 20,
+      discountPrice: 12.0,
+      discountText: '新用户 6折特惠',
+      pptLimit: '10次 / 月',
+      imgMakerLimit: '20次 / 月',
+      bedtimeVoiceLimit: '3次 / 月',
+      studyLimit: '每天 1 课',
+      desc: '全能智囊 · PPT制作',
+    },
+    {
+      id: 'quarterly',
+      name: '季卡',
+      originalPrice: 60,
+      discountPrice: 36.0,
+      discountText: '新用户 6折 · 极力推荐',
+      pptLimit: '13次 / 月',
+      imgMakerLimit: '25次 / 月',
+      bedtimeVoiceLimit: '5次 / 月',
+      studyLimit: '每天 2 课',
+      popular: true,
+      desc: '专属伴侣 · 微信绑定',
+    },
+    {
+      id: 'yearly',
+      name: '年卡',
+      originalPrice: 240,
+      discountPrice: 144.0,
+      discountText: '新用户 6折 · 全能至尊',
+      pptLimit: '15次 / 月',
+      imgMakerLimit: '30次 / 月',
+      bedtimeVoiceLimit: '8次 / 月',
+      studyLimit: '每天 3 课',
+      desc: '终极全套 · 决策流记录',
+    },
+  ];
+
+  const currentPlans = activeTier === 'silver' ? SILVER_PLANS : PLATINUM_PLANS;
+  const currentSelectedPlan = currentPlans.find((p) => p.id === selectedDuration) || currentPlans[1];
 
   const handleSubscribe = () => {
     setIsSubmitting(true);
     setTimeout(() => {
       setIsSubmitting(false);
-      onShowToast(`恭喜！成功续费【${currentPlan.name}】，会员特权已实时生效！`);
+      const tierName = activeTier === 'silver' ? '订阅会员' : '技能会员';
+      onShowToast(`🎉 成功开通【${tierName} - ${currentSelectedPlan.name}】！各项专属额度已立即生效！`);
     }, 600);
   };
 
-  const privileges = [
-    {
-      icon: <Zap className="text-amber-400" size={20} />,
-      title: '无限次深度 AI 对话',
-      desc: '无对话条数限制，零延迟极速生成',
-    },
-    {
-      icon: <Sparkles className="text-amber-400" size={20} />,
-      title: '全场 11+ 精选 AI 角色',
-      desc: '解锁霸总、病娇、治愈与傲娇全系人设',
-    },
-    {
-      icon: <Heart className="text-amber-400" size={20} />,
-      title: '亲密度羁绊加速提升',
-      desc: '聊天与每日问候获得额外好感度加成',
-    },
-    {
-      icon: <Rocket className="text-amber-400" size={20} />,
-      title: '原创角色创作与发布',
-      desc: '自定义人设立绘，支持发布至广场互动',
-    },
-    {
-      icon: <Brain className="text-amber-400" size={20} />,
-      title: '多轮上下文对话记忆',
-      desc: '智能化记住长篇对话背景与性格设定',
-    },
-    {
-      icon: <MessageSquare className="text-amber-400" size={20} />,
-      title: '角色动态朋友圈互动',
-      desc: '第一视角点赞评论角色日常生活更新',
-    },
-  ];
-
-  const faqs = [
-    {
-      q: '开通会员后支持多端同步吗？',
-      a: '支持！只需登录同一账号，移动端、Web 端均可实时共享所有会员特权、角色解锁状态与情感记忆库。',
-    },
-    {
-      q: '多次续费会员，有效期如何计算？',
-      a: '多次购买会员，有效期会自动叠加顺延；若购买【终身尊享卡】，账户将直接升级为永久黄金会员，无需再次续费。',
-    },
-    {
-      q: '遇到对话延迟或会员权益未生效怎么办？',
-      a: '可随时在「帮助与反馈」提交工单或联系客服。黄金会员尊享 7x24 小时专线优先响应处理。',
-    },
-  ];
+  const handleBuyAddon = (name: string, price: number, desc: string) => {
+    if (userProfile.money < price) {
+      onShowToast(`余额不足（需 ¥${price}，当前余额 ¥${userProfile.money.toFixed(2)}），即将跳转钱包充值！`);
+      setTimeout(() => {
+        onRechargeModal();
+      }, 500);
+      return;
+    }
+    onShowToast(`⚡ 成功购买【${name}】(${desc})，已为您实时增加使用次数！`);
+  };
 
   return (
-    <div id="vip-center-view" className="h-full overflow-y-auto p-4 pb-32 bg-[#0a0a0f] space-y-5">
-      {/* 1. Header */}
+    <div id="vip-center-view" className="h-full overflow-y-auto p-4 pb-32 bg-[#080711] space-y-5 select-none">
+      {/* 1. Header Navigation */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 active:scale-95 flex items-center justify-center text-white/80 transition"
+            className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/80 transition"
           >
             <ArrowLeft size={18} />
           </button>
-          <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              会员中心
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium">
-                VIP
-              </span>
-            </h2>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-black text-white">会员中心</h1>
+            <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+              <Crown size={11} className="fill-black" />
+              <span>VIP</span>
+            </span>
           </div>
         </div>
+
         <button
           onClick={onRechargeModal}
-          className="text-xs text-amber-400 hover:underline flex items-center gap-1 font-medium"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 text-xs font-bold transition"
         >
-          <Gift size={14} />
-          钱包充值
+          <Coins size={14} />
+          <span>钱包充值</span>
         </button>
       </div>
 
-      {/* 2. Premium VIP Card */}
-      <div className="relative overflow-hidden p-5 rounded-2xl bg-gradient-to-br from-[#f5d061] via-[#e5a93b] to-[#c88219] text-black shadow-2xl border border-amber-300/40">
-        {/* Decorative background glow */}
-        <div className="absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-white/20 blur-xl pointer-events-none" />
-        <div className="absolute right-4 top-4 text-black/10 pointer-events-none">
-          <Crown size={96} />
+      {/* 2. Top User Card */}
+      <div className="p-4 rounded-3xl bg-gradient-to-br from-amber-500/20 via-[#1d162b] to-[#120f24] border border-amber-500/40 relative overflow-hidden shadow-2xl">
+        <div className="absolute top-0 right-0 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+        
+        {/* User Info Header */}
+        <div className="flex items-center justify-between gap-3 relative z-10 mb-3">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400/30 to-yellow-500/20 border border-amber-400/40 flex items-center justify-center text-2xl shadow-inner shrink-0">
+              {userProfile.avatar || '😊'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-base font-black text-white whitespace-nowrap">{userProfile.nickname}</span>
+                <span className="px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-extrabold whitespace-nowrap">
+                  创想尊享 VIP
+                </span>
+              </div>
+              <p className="text-[11px] text-amber-200/80 mt-1 flex items-center gap-1 whitespace-nowrap">
+                <ShieldCheck size={12} className="text-amber-400 shrink-0" />
+                <span>会员有效期至 2026-12-31</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[11px] font-extrabold shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>生效中</span>
+          </div>
         </div>
 
-        <div className="relative z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-full bg-black/10 border border-black/20 overflow-hidden flex items-center justify-center font-bold text-black text-lg shrink-0">
-                {userProfile.avatar && (userProfile.avatar.startsWith('http') || userProfile.avatar.startsWith('data:')) ? (
-                  <img src={userProfile.avatar} alt="avatar" className="w-full h-full object-cover" />
-                ) : (
-                  userProfile.avatar || '😊'
-                )}
-              </div>
-              <div>
-                <div className="text-sm font-black flex items-center gap-1.5 text-black">
-                  {userProfile.nickname}
-                  <span className="text-[10px] px-2 py-0.2 rounded-full bg-black text-amber-300 font-bold">
-                    尊贵黄金会员
-                  </span>
-                </div>
-                <div className="text-[10px] text-black/70 font-medium mt-0.5">
-                  网巢 AI 创想伙伴
-                </div>
-              </div>
-            </div>
+        {/* Activated Member Identity Badges */}
+        <div className="flex items-center gap-2 pt-2.5 border-t border-white/10 relative z-10">
+          <span className="text-[11px] text-white/50 font-medium whitespace-nowrap">当前权益：</span>
+          <button
+            type="button"
+            onClick={() => setActiveTier('silver')}
+            className={`px-3 py-1 rounded-full text-[11px] font-black shadow-sm flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition active:scale-95 ${
+              activeTier === 'silver'
+                ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-950 ring-2 ring-amber-300/60 shadow-amber-500/20'
+                : 'bg-white/10 text-amber-300 hover:bg-amber-400/20'
+            }`}
+          >
+            <Crown size={12} className={`shrink-0 ${activeTier === 'silver' ? 'fill-slate-950' : 'fill-amber-300'}`} />
+            <span>订阅会员</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTier('platinum')}
+            className={`px-3 py-1 rounded-full text-[11px] font-black shadow-sm flex items-center gap-1.5 whitespace-nowrap cursor-pointer transition active:scale-95 ${
+              activeTier === 'platinum'
+                ? 'bg-gradient-to-r from-pink-400 to-purple-500 text-white ring-2 ring-pink-300/60 shadow-pink-500/20'
+                : 'bg-white/10 text-pink-300 hover:bg-pink-400/20'
+            }`}
+          >
+            <Sparkles size={12} className={`shrink-0 ${activeTier === 'platinum' ? 'fill-white' : 'fill-pink-300'}`} />
+            <span>技能会员</span>
+          </button>
+        </div>
 
-            <span className="text-[10px] px-2.5 py-1 rounded-full bg-black/80 text-amber-300 font-bold tracking-wide shadow-sm">
-              生效中
-            </span>
-          </div>
-
-          <div className="mt-5 pt-3 border-t border-black/10 flex items-end justify-between">
-            <div>
-              <div className="text-[11px] text-black/70 font-medium">会员到期时间</div>
-              <div className="text-lg font-black font-mono tracking-tight text-black mt-0.5">
-                2026-12-31 <span className="text-xs font-normal text-black/70">(永久畅聊)</span>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[10px] text-black/80 bg-black/10 px-2.5 py-1 rounded-lg font-medium">
-                无限畅聊 · 全角色解锁 · 专属原声
-              </div>
-            </div>
-          </div>
+        {/* Benefits summary footer */}
+        <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between text-[11px] text-amber-200/80">
+          <span className="truncate text-white/70">无限畅聊 · 全角色解锁 · 专属原声</span>
+          <span className="text-amber-400 font-bold whitespace-nowrap shrink-0 ml-2">已享 12 项尊享权益 ›</span>
         </div>
       </div>
 
-      {/* 3. Package Selector (订阅特惠方案) */}
-      <div className="space-y-3">
+      {/* 3. VIP Level Selector Switcher Tabs */}
+      <div className="flex rounded-2xl bg-white/5 p-1 border border-white/10">
+        <button
+          onClick={() => setActiveTier('silver')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 ${
+            activeTier === 'silver'
+              ? 'bg-gradient-to-r from-slate-200 via-gray-100 to-slate-300 text-slate-900 shadow-md'
+              : 'text-white/60 hover:text-white'
+          }`}
+        >
+          <Crown size={15} className={activeTier === 'silver' ? 'text-slate-800' : 'text-slate-400'} />
+          <span>订阅会员 (新用户6.8折)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTier('platinum')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 ${
+            activeTier === 'platinum'
+              ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 text-white shadow-md'
+              : 'text-white/60 hover:text-white'
+          }`}
+        >
+          <Flame size={15} className={activeTier === 'platinum' ? 'text-pink-300' : 'text-purple-400'} />
+          <span>技能会员 (新用户6折)</span>
+        </button>
+      </div>
+
+      {/* 4. Subscription Plan Option Cards */}
+      <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold text-white/90 uppercase tracking-wider flex items-center gap-1.5">
-            <Star size={14} className="text-amber-400 fill-amber-400" />
-            黄金会员续费 / 升级特惠
+          <h3 className="text-xs font-extrabold text-white flex items-center gap-1.5">
+            <Crown size={14} className="text-amber-400" />
+            <span>选择【{activeTier === 'silver' ? '订阅会员' : '技能会员'}】续费档位</span>
           </h3>
-          <span className="text-[11px] text-white/40">随时取消 · 自动顺延</span>
+          <span className="text-[10px] text-white/40">随时取消 · 自动顺延</span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {plans.map((plan) => {
-            const isSelected = selectedPlanId === plan.id;
+        <div className="grid grid-cols-3 gap-2.5">
+          {currentPlans.map((plan) => {
+            const isSelected = selectedDuration === plan.id;
             return (
               <div
                 key={plan.id}
-                onClick={() => setSelectedPlanId(plan.id)}
-                className={`relative p-3 rounded-xl border transition cursor-pointer flex flex-col justify-between text-center ${
+                onClick={() => setSelectedDuration(plan.id as any)}
+                className={`p-3 rounded-2xl border cursor-pointer transition relative flex flex-col justify-between active:scale-[0.98] ${
                   isSelected
-                    ? 'bg-amber-500/10 border-amber-500 text-amber-300 shadow-lg shadow-amber-500/10'
-                    : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10'
+                    ? activeTier === 'silver'
+                      ? 'bg-slate-800/80 border-slate-300 text-white shadow-lg shadow-slate-500/20'
+                      : 'bg-purple-900/40 border-pink-400 text-white shadow-lg shadow-pink-500/20'
+                    : 'bg-white/[0.03] border-white/10 text-white/70 hover:bg-white/5'
                 }`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 text-[9px] font-bold text-white whitespace-nowrap shadow-sm">
-                    热门推荐
+                  <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white text-[9px] font-black shadow-md whitespace-nowrap">
+                    {plan.discountText}
                   </div>
                 )}
+
                 <div>
-                  <div className="text-xs font-bold text-white mt-1">{plan.name}</div>
-                  <div className="my-2">
-                    <span className="text-xs font-bold text-amber-400">¥</span>
-                    <span className="text-2xl font-black text-amber-400 font-mono ml-0.5">
-                      {plan.price}
-                    </span>
-                    <span className="text-[10px] text-white/40">{plan.unit}</span>
+                  <div className="text-xs font-black text-white text-center mt-1">
+                    {plan.name}
                   </div>
-                  <div className="text-[10px] text-white/40 line-through font-mono">
-                    ¥{plan.originalPrice}
+
+                  <div className="text-center my-2">
+                    <div className="text-lg font-black text-amber-300 font-mono">
+                      ¥ {plan.discountPrice.toFixed(1)}
+                    </div>
+                    <div className="text-[10px] text-white/40 line-through">
+                      原价 ¥{plan.originalPrice}
+                    </div>
                   </div>
                 </div>
-                <div className="mt-2 text-[9px] text-amber-300/80 bg-amber-400/10 py-1 rounded-md leading-tight">
-                  {plan.tag || plan.desc}
+
+                <div className="text-[9px] text-center text-white/50 border-t border-white/10 pt-1.5 mt-1 line-clamp-1">
+                  {plan.desc}
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
-
-      {/* 4. Core Privileges List (尊享权益矩阵) */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
-        <h3 className="text-xs font-bold text-white/90 uppercase tracking-wider flex items-center justify-between">
-          <span>尊享 6 大黄金特权矩阵</span>
-          <span className="text-[11px] text-amber-400 font-normal">已获得全套特权</span>
-        </h3>
-
-        <div className="grid grid-cols-2 gap-3">
-          {privileges.map((item, idx) => (
-            <div
-              key={idx}
-              className="p-3 rounded-xl bg-white/5 border border-white/5 hover:border-amber-500/30 transition group"
-            >
-              <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center mb-2 group-hover:scale-110 transition">
-                {item.icon}
-              </div>
-              <div className="text-xs font-bold text-white mb-0.5">{item.title}</div>
-              <div className="text-[10px] text-white/50 leading-relaxed">{item.desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 5. Rights Comparison Table (普通用户 VS 黄金会员) */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-        <h3 className="text-xs font-bold text-white/90 uppercase tracking-wider">
-          普通用户 vs 黄金会员 权益对比
-        </h3>
-
-        <div className="overflow-hidden rounded-xl border border-white/10 text-xs">
-          <div className="grid grid-cols-3 bg-white/10 p-2.5 text-[11px] font-bold text-white/80 text-center">
-            <div className="text-left pl-2">权益项目</div>
-            <div>普通用户</div>
-            <div className="text-amber-400">黄金终身会员</div>
-          </div>
-
-          <div className="divide-y divide-white/5 bg-black/20 text-[11px] text-white/70">
-            <div className="grid grid-cols-3 p-2.5 items-center text-center">
-              <div className="text-left pl-2 font-medium text-white/90">每日对话次数</div>
-              <div className="text-white/40">20次 / 天</div>
-              <div className="text-amber-300 font-bold">无限次畅聊</div>
-            </div>
-            <div className="grid grid-cols-3 p-2.5 items-center text-center">
-              <div className="text-left pl-2 font-medium text-white/90">官方精选角色</div>
-              <div className="text-white/40">限时试用 3 个</div>
-              <div className="text-amber-300 font-bold">11+ 全场解锁</div>
-            </div>
-            <div className="grid grid-cols-3 p-2.5 items-center text-center">
-              <div className="text-left pl-2 font-medium text-white/90">亲密度提升速度</div>
-              <div className="text-white/40">标准速度</div>
-              <div className="text-amber-300 font-bold">双倍加速 + 专属问候</div>
-            </div>
-            <div className="grid grid-cols-3 p-2.5 items-center text-center">
-              <div className="text-left pl-2 font-medium text-white/90">角色创作与入驻</div>
-              <div className="text-white/40">受限模式</div>
-              <div className="text-amber-300 font-bold">无限制自由创作</div>
-            </div>
-            <div className="grid grid-cols-3 p-2.5 items-center text-center">
-              <div className="text-left pl-2 font-medium text-white/90">AI 响应通道</div>
-              <div className="text-white/40">标准通道</div>
-              <div className="text-amber-300 font-bold">VIP 极速通道</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 6. FAQ Section */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-        <h3 className="text-xs font-bold text-white/90 uppercase tracking-wider flex items-center gap-1.5">
-          <HelpCircle size={14} className="text-amber-400" />
-          会员常见问题
-        </h3>
-
-        <div className="space-y-2 text-xs">
-          {faqs.map((faq, idx) => (
-            <div
-              key={idx}
-              className="rounded-xl bg-white/5 border border-white/5 overflow-hidden transition"
-            >
-              <button
-                onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
-                className="w-full p-3 text-left font-medium text-white/90 flex items-center justify-between hover:bg-white/5 transition"
-              >
-                <span>{faq.q}</span>
-                <ChevronRight
-                  size={14}
-                  className={`text-white/40 transition-transform ${
-                    activeFaq === idx ? 'rotate-90' : ''
-                  }`}
-                />
-              </button>
-              {activeFaq === idx && (
-                <div className="px-3 pb-3 pt-1 text-[11px] text-white/60 leading-relaxed border-t border-white/5">
-                  {faq.a}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 7. Bottom Fixed Purchase Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 p-3 bg-[#0a0a0f]/95 backdrop-blur-md border-t border-white/10 max-w-md mx-auto flex items-center justify-between gap-3">
-        <div>
-          <div className="text-[10px] text-white/40">选购套餐: {currentPlan.name}</div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-xs text-amber-400 font-bold">¥</span>
-            <span className="text-xl font-black text-amber-400 font-mono">
-              {currentPlan.price}.00
-            </span>
-            <span className="text-[10px] text-white/50 line-through font-mono">
-              ¥{currentPlan.originalPrice}
-            </span>
-          </div>
-        </div>
 
         <button
           onClick={handleSubscribe}
           disabled={isSubmitting}
-          className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:brightness-110 active:scale-98 text-black font-extrabold text-xs shadow-lg shadow-amber-500/20 transition flex items-center justify-center gap-1.5"
+          className={`w-full py-3.5 rounded-2xl text-xs font-black shadow-lg transition flex items-center justify-center gap-2 active:scale-98 ${
+            activeTier === 'silver'
+              ? 'bg-gradient-to-r from-slate-200 via-gray-100 to-slate-300 text-slate-950 shadow-slate-500/30'
+              : 'bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 text-white shadow-purple-500/30'
+          }`}
         >
-          <Crown size={15} className="fill-black" />
-          {isSubmitting ? '处理中...' : `立即续费【${currentPlan.name}】`}
+          {isSubmitting ? (
+            <span>正在开通会员权益中……</span>
+          ) : (
+            <>
+              <Zap size={16} />
+              <span>
+                立即开通【{activeTier === 'silver' ? '订阅' : '技能'} - {currentSelectedPlan.name}】¥{currentSelectedPlan.discountPrice.toFixed(1)}
+              </span>
+            </>
+          )}
         </button>
+      </div>
+
+      {/* 5. Detailed Quota & Privilege Comparison */}
+      <div className="p-4 rounded-3xl bg-white/[0.03] border border-white/10 space-y-3">
+        <h3 className="text-xs font-extrabold text-white flex items-center justify-between">
+          <span className="flex items-center gap-1.5">
+            <Sparkles size={14} className="text-amber-400" />
+            <span>【{activeTier === 'silver' ? '订阅会员' : '技能会员'}】尊享特权与额度清单</span>
+          </span>
+          <span className="text-[10px] text-amber-300 font-normal">
+            对应{currentSelectedPlan.name}额度
+          </span>
+        </h3>
+
+        {activeTier === 'silver' ? (
+          <div className="space-y-2 text-xs">
+            {/* Daily Chat & Roaming */}
+            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MessageSquare size={15} className="text-purple-400" />
+                <span className="text-white font-semibold">消息漫游与每日对话条数</span>
+              </div>
+              <span className="font-bold text-amber-300 font-mono">
+                {(currentSelectedPlan as any).dailyChat}
+              </span>
+            </div>
+
+            {/* Image Assistant */}
+            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ImageIcon size={15} className="text-pink-400" />
+                <span className="text-white font-semibold">图片助手工具次数</span>
+              </div>
+              <span className="font-bold text-amber-300 font-mono">
+                {(currentSelectedPlan as any).imageLimit}
+              </span>
+            </div>
+
+            {/* AI Theater Script */}
+            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clapperboard size={15} className="text-indigo-400" />
+                <span className="text-white font-semibold">AI 剧场脚本生成次数</span>
+              </div>
+              <span className="font-bold text-amber-300 font-mono">
+                {(currentSelectedPlan as any).theaterLimit}
+              </span>
+            </div>
+
+            {/* Story Line Generator */}
+            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BookOpen size={15} className="text-emerald-400" />
+                <span className="text-white font-semibold">故事剧情小说生成次数</span>
+              </div>
+              <span className="font-bold text-amber-300 font-mono">
+                {(currentSelectedPlan as any).storyLimit}
+              </span>
+            </div>
+
+            {/* Silver Core Feature Grid */}
+            <div className="pt-2 grid grid-cols-2 gap-2 text-[11px] text-white/70">
+              <div className="p-2 rounded-lg bg-white/[0.02] flex items-center gap-1.5">
+                <Bell size={12} className="text-amber-400" />
+                <span>事件闹钟提醒</span>
+              </div>
+              <div className="p-2 rounded-lg bg-white/[0.02] flex items-center gap-1.5">
+                <Brain size={12} className="text-purple-400" />
+                <span>角色记忆增强</span>
+              </div>
+              <div className="p-2 rounded-lg bg-white/[0.02] flex items-center gap-1.5">
+                <Zap size={12} className="text-pink-400" />
+                <span>思考模型优先响应</span>
+              </div>
+              <div className="p-2 rounded-lg bg-white/[0.02] flex items-center gap-1.5">
+                <Rocket size={12} className="text-indigo-400" />
+                <span>角色回复速度提升</span>
+              </div>
+              <div className="p-2 rounded-lg bg-white/[0.02] flex items-center gap-1.5">
+                <HelpCircle size={12} className="text-emerald-400" />
+                <span>生活决策事项建议</span>
+              </div>
+              <div className="p-2 rounded-lg bg-white/[0.02] flex items-center gap-1.5">
+                <Heart size={12} className="text-red-400" />
+                <span>纪念日专属提醒</span>
+              </div>
+              <div className="p-2 rounded-lg bg-white/[0.02] flex items-center gap-1.5 col-span-2">
+                <RotateCcw size={12} className="text-cyan-400" />
+                <span>对话撤回与无缝修改</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2 text-xs">
+            {/* PPT Creation */}
+            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText size={15} className="text-amber-400" />
+                <span className="text-white font-semibold">PPT 一键制作生成</span>
+              </div>
+              <span className="font-bold text-amber-300 font-mono">
+                {(currentSelectedPlan as any).pptLimit}
+              </span>
+            </div>
+
+            {/* Picture Generation */}
+            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ImageIcon size={15} className="text-pink-400" />
+                <span className="text-white font-semibold">图片与生图助手制作</span>
+              </div>
+              <span className="font-bold text-amber-300 font-mono">
+                {(currentSelectedPlan as any).imgMakerLimit}
+              </span>
+            </div>
+
+            {/* Bedtime Story Voice */}
+            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Volume2 size={15} className="text-purple-400" />
+                <span className="text-white font-semibold">睡前故事角色原声配音</span>
+              </div>
+              <span className="font-bold text-amber-300 font-mono">
+                {(currentSelectedPlan as any).bedtimeVoiceLimit}
+              </span>
+            </div>
+
+            {/* Learning Supervision */}
+            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GraduationCap size={15} className="text-emerald-400" />
+                <span className="text-white font-semibold">全能学习监督规划</span>
+              </div>
+              <span className="font-bold text-amber-300 font-mono">
+                {(currentSelectedPlan as any).studyLimit}
+              </span>
+            </div>
+
+            {/* Platinum Extras */}
+            <div className="pt-2 grid grid-cols-2 gap-2 text-[11px] text-white/70">
+              <div className="p-2 rounded-lg bg-white/[0.02] flex items-center gap-1.5">
+                <Brain size={12} className="text-pink-400" />
+                <span>决策记录流智能整理</span>
+              </div>
+              <div className="p-2 rounded-lg bg-white/[0.02] flex items-center gap-1.5">
+                <Share2 size={12} className="text-emerald-400" />
+                <span>绑定微信聊天生态</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 6. 超出加量包 / 补充站 (Add-on Extra Quota Purchases) */}
+      <div className="p-4 rounded-3xl bg-gradient-to-b from-[#131124] to-[#0a0a0f] border border-purple-500/30 space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-extrabold text-white flex items-center gap-1.5">
+            <Plus size={15} className="text-pink-400" />
+            <span>用量超出扩展加量包 (单独购买)</span>
+          </h3>
+          <span className="text-[10px] text-pink-300">额度用完随时加补充</span>
+        </div>
+
+        <div className="space-y-2">
+          {/* Chat Quota Add-on */}
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>聊天次数超出补给包</span>
+              </div>
+              <div className="text-[10px] text-white/50 mt-0.5">增加 200 次高速 AI 对话额度</div>
+            </div>
+            <button
+              onClick={() => handleBuyAddon('聊天次数包', 10, '200次聊天')}
+              className="px-3 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/40 text-xs font-bold font-mono transition"
+            >
+              ¥ 10 / 200次
+            </button>
+          </div>
+
+          {/* Image Quota Add-on */}
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-between">
+            <div>
+              <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>图片制作超出包</span>
+              </div>
+              <div className="text-[10px] text-white/50 mt-0.5">增加 15 张生图助手配图额度</div>
+            </div>
+            <button
+              onClick={() => handleBuyAddon('图片做图包', 5, '15张图')}
+              className="px-3 py-1.5 rounded-xl bg-pink-600/30 hover:bg-pink-600 text-pink-200 hover:text-white border border-pink-500/40 text-xs font-bold font-mono transition"
+            >
+              ¥ 5 / 15张
+            </button>
+          </div>
+
+          {/* AI Theater Script Add-on */}
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white">AI 剧场脚本生成超出包</span>
+              <span className="text-[10px] text-indigo-300">按剧本字数阶梯收费</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleBuyAddon('剧场脚本包(5000字)', 5, '5000字内')}
+                className="py-1.5 px-2 rounded-xl bg-white/5 hover:bg-purple-600/30 border border-white/10 text-[11px] font-bold text-white font-mono text-center transition"
+              >
+                ¥5 / 5000字内
+              </button>
+              <button
+                onClick={() => handleBuyAddon('剧场脚本包(10000字)', 10, '10000字内')}
+                className="py-1.5 px-2 rounded-xl bg-white/5 hover:bg-purple-600/30 border border-white/10 text-[11px] font-bold text-white font-mono text-center transition"
+              >
+                ¥10 / 10000字内
+              </button>
+            </div>
+          </div>
+
+          {/* Story Generation Add-on */}
+          <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-white">故事剧情小说生成超出包</span>
+              <span className="text-[10px] text-emerald-300">按小说篇幅阶梯计费</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleBuyAddon('故事剧情包(5000字)', 3, '5000字内')}
+                className="py-1.5 px-2 rounded-xl bg-white/5 hover:bg-emerald-600/30 border border-white/10 text-[11px] font-bold text-white font-mono text-center transition"
+              >
+                ¥3 / 5000字内
+              </button>
+              <button
+                onClick={() => handleBuyAddon('故事剧情包(10000字)', 5, '10000字内')}
+                className="py-1.5 px-2 rounded-xl bg-white/5 hover:bg-emerald-600/30 border border-white/10 text-[11px] font-bold text-white font-mono text-center transition"
+              >
+                ¥5 / 10000字内
+              </button>
+              <button
+                onClick={() => handleBuyAddon('故事剧情包(20000字)', 10, '20000字内')}
+                className="py-1.5 px-2 rounded-xl bg-white/5 hover:bg-emerald-600/30 border border-white/10 text-[11px] font-bold text-white font-mono text-center transition"
+              >
+                ¥10 / 20000字内
+              </button>
+              <button
+                onClick={() => handleBuyAddon('故事剧情包(25000字)', 15, '25000字内')}
+                className="py-1.5 px-2 rounded-xl bg-white/5 hover:bg-emerald-600/30 border border-white/10 text-[11px] font-bold text-white font-mono text-center transition"
+              >
+                ¥15 / 25000字内
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 7. FAQ */}
+      <div className="space-y-2.5">
+        <h3 className="text-xs font-extrabold text-white flex items-center gap-1.5">
+          <HelpCircle size={14} className="text-purple-400" />
+          <span>常见问题与订阅说明</span>
+        </h3>
+
+        <div className="space-y-2">
+          {[
+            {
+              q: '订阅会员与技能会员有什么区别？',
+              a: '订阅会员主打基础聊天扩展与高性价比写作助手（每天高达 800 次对话与消息漫游）；技能会员包含 PPT 制作、睡前语音故事、全能学习监督规划以及绑定微信等高阶服务。',
+            },
+            {
+              q: '使用额度用完后怎么办理？',
+              a: '若当月或当季的图片、剧本或故事生成额度用尽，可以在下方“超出加量包”区域随时按需付费单独补充，无须重复升级会员。',
+            },
+            {
+              q: '购买后支持多端同步生效吗？',
+              a: '支持！同一账号登录即可在手机端、电脑端及网页端同步使用所有订阅会员或技能会员特权与补给包。',
+            },
+          ].map((item, idx) => (
+            <div
+              key={idx}
+              onClick={() => setActiveFaq(activeFaq === idx ? null : idx)}
+              className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 cursor-pointer transition"
+            >
+              <div className="flex items-center justify-between text-xs font-bold text-white/90">
+                <span>{item.q}</span>
+                <ChevronRight
+                  size={14}
+                  className={`text-white/40 transition-transform ${
+                    activeFaq === idx ? 'rotate-90 text-purple-400' : ''
+                  }`}
+                />
+              </div>
+              {activeFaq === idx && (
+                <p className="text-[11px] text-white/60 mt-2 pt-2 border-t border-white/5 leading-relaxed font-light">
+                  {item.a}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
