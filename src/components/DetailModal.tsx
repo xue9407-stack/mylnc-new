@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Role } from '../types';
+import { Role, StoryLineItem, MiniTheaterItem, UserProfile } from '../types';
 import {
   X,
   Share2,
@@ -29,17 +29,26 @@ import {
   Plus,
   Info,
   ChevronRight,
-  Smile
+  User,
+  Play,
+  Volume2,
+  Coins
 } from 'lucide-react';
 import { getIntimacyData, getIntimacyPercent } from '../utils/intimacy';
 import { IntimacyModal } from './IntimacyModal';
 import { ROLE_MEDIA_MAP } from '../data/rolePortraits';
 import { ROLE_AI_TOOLS, isRoleUnlocked, unlockRoleToolkit, RoleToolInfo } from '../utils/roleUnlock';
+import { getRoleStorylines, saveRoleStoryline, getRoleTheaters, saveRoleTheater } from '../data/storyTheaterPresetData';
+import { StoryReaderModal } from './StoryReaderModal';
+import { StoryCreateModal } from './StoryCreateModal';
+import { TheaterPlayerModal } from './TheaterPlayerModal';
+import { TheaterCreateModal } from './TheaterCreateModal';
 
 interface DetailModalProps {
   role: Role | null;
   isOpen: boolean;
   isFollowed: boolean;
+  userProfile?: UserProfile;
   onClose: () => void;
   onToggleFollow: () => void;
   onStartChat: (role: Role, prompt?: string) => void;
@@ -47,12 +56,23 @@ interface DetailModalProps {
   intimacyPoints?: number;
   onUpdateIntimacy?: (added: number) => void;
   onOpenRecharge?: () => void;
+  onDeductMoney?: (amount: number) => boolean;
 }
 
 export const DetailModal: React.FC<DetailModalProps> = ({
   role,
   isOpen,
   isFollowed,
+  userProfile = {
+    id: 0,
+    username: 'guest',
+    nickname: '未登录',
+    avatar: '😊',
+    money: 0,
+    score: 0,
+    vip_level: 0,
+    vip_text: '普通用户'
+  },
   onClose,
   onToggleFollow,
   onStartChat,
@@ -60,6 +80,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   intimacyPoints = 0,
   onUpdateIntimacy,
   onOpenRecharge,
+  onDeductMoney,
 }) => {
   const [activeTab, setActiveTab] = useState<'about' | 'story' | 'theater'>('about');
   const [showFullPortrait, setShowFullPortrait] = useState(false);
@@ -68,12 +89,24 @@ export const DetailModal: React.FC<DetailModalProps> = ({
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const [showUnlockConfirm, setShowUnlockConfirm] = useState<boolean>(false);
   const [selectedTool, setSelectedTool] = useState<RoleToolInfo | null>(null);
-  const [showBanner, setShowBanner] = useState(true);
+
+  // Storylines & Theaters State
+  const [storylines, setStorylines] = useState<StoryLineItem[]>([]);
+  const [theaters, setTheaters] = useState<MiniTheaterItem[]>([]);
+
+  // Modals for Reading / Playing & Creating
+  const [activeStory, setActiveStory] = useState<StoryLineItem | null>(null);
+  const [showStoryCreate, setShowStoryCreate] = useState(false);
+
+  const [activeTheater, setActiveTheater] = useState<MiniTheaterItem | null>(null);
+  const [showTheaterCreate, setShowTheaterCreate] = useState(false);
 
   useEffect(() => {
     setImgError(false);
     if (role) {
       setIsUnlocked(isRoleUnlocked(role.id));
+      setStorylines(getRoleStorylines(role.id));
+      setTheaters(getRoleTheaters(role.id));
     }
   }, [role?.id]);
 
@@ -98,6 +131,18 @@ export const DetailModal: React.FC<DetailModalProps> = ({
     }
     const prompt = tool.promptTemplate(role.name);
     onStartChat(role, prompt);
+  };
+
+  const handleStoryCreated = (newStory: StoryLineItem) => {
+    const updated = saveRoleStoryline(role.id, newStory);
+    setStorylines(updated);
+    setActiveStory(newStory);
+  };
+
+  const handleTheaterCreated = (newTheater: MiniTheaterItem) => {
+    const updated = saveRoleTheater(role.id, newTheater);
+    setTheaters(updated);
+    setActiveTheater(newTheater);
   };
 
   return (
@@ -206,7 +251,7 @@ export const DetailModal: React.FC<DetailModalProps> = ({
               activeTab === 'story' ? 'text-white' : 'text-white/50 hover:text-white/80'
             }`}
           >
-            故事
+            故事线
             {activeTab === 'story' && (
               <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-1 bg-[#6c52ee] rounded-full" />
             )}
@@ -225,9 +270,20 @@ export const DetailModal: React.FC<DetailModalProps> = ({
           </button>
         </div>
 
-        {/* TAB 1: 关于Ta */}
+        {/* TAB 1: 关于Ta (简单流畅背景人设) */}
         {activeTab === 'about' && (
           <div className="space-y-4 animate-fadeIn">
+            {/* Simple Background Bio Description */}
+            <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2">
+              <h3 className="text-xs font-extrabold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                <User size={13} />
+                <span>背景描述与人设</span>
+              </h3>
+              <p className="text-sm text-white/85 leading-relaxed font-light">
+                {role.desc}
+              </p>
+            </div>
+
             {/* Intimacy / Affection Card */}
             <div
               onClick={() => setShowIntimacyModal(true)}
@@ -277,6 +333,41 @@ export const DetailModal: React.FC<DetailModalProps> = ({
               </div>
             </div>
 
+            {/* Personality Tags */}
+            <div>
+              <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">性格标签</h3>
+              <div className="flex flex-wrap gap-2">
+                {role.tags.map((t, idx) => (
+                  <span
+                    key={idx}
+                    className="px-3 py-1 rounded-full bg-white/8 text-white/85 text-xs font-medium border border-white/5 hover:border-purple-500/40 transition"
+                  >
+                    #{t}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Starter Prompts */}
+            <div>
+              <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <Sparkles size={13} className="text-purple-400" />
+                <span>专属开场话题</span>
+              </h3>
+              <div className="space-y-2">
+                {role.topics.map((topic, i) => (
+                  <div
+                    key={i}
+                    onClick={() => onStartChat(role, `你好，我想聊聊“${topic}”`)}
+                    className="p-3 rounded-xl bg-purple-950/20 border border-purple-500/20 text-purple-200 text-xs leading-normal hover:bg-purple-900/30 transition cursor-pointer flex items-center justify-between group active:scale-[0.99]"
+                  >
+                    <span>“{topic}”</span>
+                    <span className="text-purple-400 text-xs group-hover:translate-x-0.5 transition">聊这个 ›</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* 10 AI Toolkit Section */}
             <div className="p-4 rounded-2xl bg-gradient-to-b from-[#131022] via-[#0d0b17] to-[#0a0a0f] border border-purple-500/30 shadow-xl relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
@@ -304,21 +395,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                   </span>
                 )}
               </div>
-
-              {!isUnlocked && (
-                <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-purple-900/40 via-pink-900/30 to-purple-900/40 border border-pink-500/40 text-center space-y-2">
-                  <p className="text-[11px] text-purple-200/90 leading-relaxed">
-                    解锁后【{role.name}】将全天候为你处理 PPT 制作、数据分析、出差闹钟、睡前故事、学习抽查等 10 大专属特权！
-                  </p>
-                  <button
-                    onClick={handleUnlockClick}
-                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:opacity-95 text-white text-xs font-extrabold shadow-lg shadow-purple-500/30 active:scale-95 transition flex items-center justify-center gap-2"
-                  >
-                    <Zap size={14} className="fill-white" />
-                    <span>⚡ 充值 ¥10 / 钻石一键解锁【{role.name}】智囊包</span>
-                  </button>
-                </div>
-              )}
 
               <div className="mt-3.5 grid grid-cols-2 gap-2">
                 {ROLE_AI_TOOLS.map((tool) => {
@@ -366,138 +442,142 @@ export const DetailModal: React.FC<DetailModalProps> = ({
                 })}
               </div>
             </div>
-
-            {/* Description Bio */}
-            <div>
-              <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-1.5">角色人设自白</h3>
-              <p className="text-sm text-white/80 leading-relaxed bg-white/[0.03] p-3.5 rounded-2xl border border-white/5 font-light">
-                {role.desc}
-              </p>
-            </div>
-
-            {/* Tags */}
-            <div>
-              <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">性格标签</h3>
-              <div className="flex flex-wrap gap-2">
-                {role.tags.map((t, idx) => (
-                  <span
-                    key={idx}
-                    className="px-3 py-1 rounded-full bg-white/8 text-white/85 text-xs font-medium border border-white/5 hover:border-purple-500/40 transition"
-                  >
-                    #{t}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Starter Prompts */}
-            <div>
-              <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2 flex items-center gap-1">
-                <Sparkles size={13} className="text-purple-400" />
-                <span>专属开场话题</span>
-              </h3>
-              <div className="space-y-2">
-                {role.topics.map((topic, i) => (
-                  <div
-                    key={i}
-                    onClick={() => onStartChat(role, `你好，我想聊聊“${topic}”`)}
-                    className="p-3 rounded-xl bg-purple-950/20 border border-purple-500/20 text-purple-200 text-xs leading-normal hover:bg-purple-900/30 transition cursor-pointer flex items-center justify-between group active:scale-[0.99]"
-                  >
-                    <span>“{topic}”</span>
-                    <span className="text-purple-400 text-xs group-hover:translate-x-0.5 transition">聊这个 ›</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 
-        {/* TAB 2: 故事 (Image 2 exact style) */}
+        {/* TAB 2: 故事线 (纯文字互动小说 + 按字数AI收费创作) */}
         {activeTab === 'story' && (
           <div className="space-y-4 animate-fadeIn">
-            {/* Top Notice Banner */}
-            {showBanner && (
-              <div className="p-3 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between text-xs text-white/70">
-                <div className="flex items-center gap-2">
-                  <Info size={14} className="text-purple-400 shrink-0" />
-                  <span>补充长篇剧情与设定，推荐仅浏览</span>
-                </div>
-                <button
-                  onClick={() => setShowBanner(false)}
-                  className="p-1 text-white/40 hover:text-white transition"
-                >
-                  <X size={14} />
-                </button>
+            {/* Action Bar: Create Storyline */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-900/30 via-[#19152b] to-purple-900/30 border border-purple-500/30 flex items-center justify-between">
+              <div>
+                <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <BookOpen size={14} className="text-purple-400" />
+                  <span>【{role.name}】故事线列表</span>
+                </h4>
+                <p className="text-[10px] text-purple-300/70">纯文字小说演绎 · 选择肢互动影响结局</p>
               </div>
-            )}
 
-            {/* Empty State Graphic (Image 2 style) */}
-            <div className="py-8 text-center space-y-3">
-              <div className="w-24 h-24 mx-auto rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-4xl shadow-inner relative">
-                <span className="animate-bounce">🥣</span>
-                <span className="absolute -top-1 -right-1 text-lg">✨</span>
-              </div>
-              <div className="text-xs font-medium text-white/50">
-                粮仓空空，期待产粮！
-              </div>
+              <button
+                onClick={() => setShowStoryCreate(true)}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white text-xs font-bold shadow-md shadow-purple-500/30 flex items-center gap-1 transition active:scale-95"
+              >
+                <Plus size={14} />
+                <span>创建故事线</span>
+              </button>
             </div>
 
-            {/* Story Guide Section (Image 2 style) */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center gap-2 text-sm font-bold text-white">
-                <span className="text-purple-400 font-mono">故事</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-normal">
-                  玩法指南
-                </span>
-              </div>
+            {/* List of Storylines */}
+            <div className="space-y-3">
+              {storylines.map((st) => (
+                <div
+                  key={st.id}
+                  className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-purple-500/40 transition space-y-2 group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-extrabold text-white group-hover:text-purple-300 transition">
+                        {st.title}
+                      </span>
+                      {st.isCustom && (
+                        <span className="text-[9px] px-2 py-0.2 rounded-full bg-pink-500/20 text-pink-300 font-bold border border-pink-500/30">
+                          AI 专属定制
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-purple-300 font-mono font-bold">
+                      {st.wordCount} 字
+                    </span>
+                  </div>
 
-              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-white mb-1">故事是什么？</h4>
-                  <p className="text-xs text-white/60 leading-relaxed font-light">
-                    故事是大家为【{role.name}】创作的背景设定或长剧情。主要用于阅读浏览，加深对【{role.name}】过往经历与情感世界观的了解。
+                  <p className="text-xs text-white/60 leading-relaxed font-light line-clamp-2">
+                    {st.summary}
                   </p>
-                </div>
 
-                <div className="border-t border-white/5 pt-3">
-                  <h4 className="text-xs font-bold text-white mb-1">故事与剧场的区别？</h4>
-                  <p className="text-xs text-white/60 leading-relaxed font-light">
-                    故事侧重设定与沉浸式文本浏览；小剧场则侧重角色实时互动剧本演练。
-                  </p>
+                  <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[11px] text-white/40">
+                    <span>作者：{st.author}</span>
+                    <button
+                      onClick={() => setActiveStory(st)}
+                      className="px-3 py-1 rounded-xl bg-purple-600/30 hover:bg-purple-600 text-purple-200 hover:text-white border border-purple-500/30 text-xs font-bold transition flex items-center gap-1"
+                    >
+                      <span>进入故事线</span>
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* TAB 3: 小剧场 */}
+        {/* TAB 3: 小剧场 (互动影响+动态图+背景图+配音+按字数收费创作) */}
         {activeTab === 'theater' && (
           <div className="space-y-4 animate-fadeIn">
-            <div className="p-3 rounded-2xl bg-purple-950/20 border border-purple-500/20 flex items-center gap-2 text-xs text-purple-200">
-              <Clapperboard size={15} className="text-purple-400 shrink-0" />
-              <span>选择以下精选剧本，立刻开启【{role.name}】的即兴互动演练！</span>
+            {/* Action Bar: Create Mini-Theater */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-pink-900/30 via-[#19152b] to-purple-900/30 border border-pink-500/30 flex items-center justify-between">
+              <div>
+                <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Clapperboard size={14} className="text-pink-400" />
+                  <span>【{role.name}】小剧场空间</span>
+                </h4>
+                <p className="text-[10px] text-pink-300/70">文字互动影响剧情 + 动态 GIF + 背景图 + 原声配音</p>
+              </div>
+
+              <button
+                onClick={() => setShowTheaterCreate(true)}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 hover:opacity-90 text-white text-xs font-bold shadow-md shadow-pink-500/30 flex items-center gap-1 transition active:scale-95"
+              >
+                <Plus size={14} />
+                <span>创建小剧场</span>
+              </button>
             </div>
 
-            <div className="space-y-2.5">
-              {[
-                { title: '初次误闯私人书房', desc: '在深夜的私人庄园里，意外打翻了重要卷宗……', prompt: `设定：我们现在在你的私人书房里，我意外打翻了桌上的卷宗，你正准备走过来查看……` },
-                { title: '深夜雨天紧急求助', desc: '困在暴雨倾盆的街头，拨通了对方的第一电话……', prompt: `设定：外面正下着暴雨，我困在路边，电话拨通后，你焦急地对我说……` },
-                { title: '误会冰释的烛光对话', desc: '经历多日冷战后，终于坐在一张桌前谈心……', prompt: `设定：我们坐在静谧的房间里，解开了之前的误会，你看着我轻声开口……` },
-              ].map((item, idx) => (
+            {/* List of Mini-Theaters */}
+            <div className="space-y-3">
+              {theaters.map((th) => (
                 <div
-                  key={idx}
-                  onClick={() => onStartChat(role, item.prompt)}
-                  className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 hover:border-purple-500/40 transition cursor-pointer flex items-center justify-between group active:scale-[0.99]"
+                  key={th.id}
+                  onClick={() => setActiveTheater(th)}
+                  className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 hover:border-pink-500/40 transition flex gap-3 cursor-pointer group relative overflow-hidden"
                 >
-                  <div>
-                    <div className="text-xs font-bold text-white flex items-center gap-2">
-                      <span>🎬 {item.title}</span>
+                  <div className="w-24 h-20 rounded-xl overflow-hidden shrink-0 relative bg-black/40 border border-white/10">
+                    <img
+                      src={th.bgImage}
+                      alt={th.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                      <div className="w-7 h-7 rounded-full bg-purple-600/80 text-white flex items-center justify-center shadow-lg">
+                        <Play size={14} className="ml-0.5" />
+                      </div>
                     </div>
-                    <div className="text-[11px] text-white/50 mt-1 font-light">{item.desc}</div>
                   </div>
-                  <button className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-[11px] font-bold shrink-0 ml-2 shadow-sm transition">
-                    入场
-                  </button>
+
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between gap-1">
+                        <h4 className="text-xs font-extrabold text-white truncate group-hover:text-pink-300 transition">
+                          {th.title}
+                        </h4>
+                        {th.isCustom && (
+                          <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30 shrink-0">
+                            定制
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-white/50 line-clamp-2 mt-1 font-light">
+                        {th.desc}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[10px] text-purple-300/80 mt-1">
+                      <span className="flex items-center gap-1">
+                        <Volume2 size={11} className="text-pink-400" />
+                        <span>含有声配音与 GIF 演练</span>
+                      </span>
+                      <span className="font-bold font-mono">进入剧场 ›</span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -505,24 +585,23 @@ export const DetailModal: React.FC<DetailModalProps> = ({
         )}
       </div>
 
-      {/* Bottom Action Bar (Image 2 exact shape & style) */}
+      {/* Bottom Action Bar */}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-[#0a0a0f]/95 backdrop-blur-xl border-t border-white/10 flex gap-3 z-20">
-        {/* Left Action Button (Image 2 light rounded pill) */}
         {activeTab === 'story' ? (
           <button
-            onClick={() => onShowToast(`提示：【${role.name}】的专属长篇故事编辑器即将上线！`)}
+            onClick={() => setShowStoryCreate(true)}
             className="flex-1 py-3.5 px-4 rounded-[20px] text-sm font-bold bg-[#221c38] hover:bg-[#2e264d] text-[#c4b5fd] border border-[#a78bfa]/20 flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"
           >
             <PenTool size={16} className="text-[#a78bfa]" />
-            <span>创建故事</span>
+            <span>创建故事线</span>
           </button>
         ) : activeTab === 'theater' ? (
           <button
-            onClick={() => onShowToast(`提示：自定义【${role.name}】小剧场功能开发中！`)}
+            onClick={() => setShowTheaterCreate(true)}
             className="flex-1 py-3.5 px-4 rounded-[20px] text-sm font-bold bg-[#221c38] hover:bg-[#2e264d] text-[#c4b5fd] border border-[#a78bfa]/20 flex items-center justify-center gap-2 transition active:scale-95 shadow-sm"
           >
             <Clapperboard size={16} className="text-[#a78bfa]" />
-            <span>创建剧场</span>
+            <span>创建小剧场</span>
           </button>
         ) : (
           <button
@@ -539,7 +618,6 @@ export const DetailModal: React.FC<DetailModalProps> = ({
           </button>
         )}
 
-        {/* Right Action Button (Image 2 vibrant purple rounded pill) */}
         <button
           id="btn-start-chat-modal"
           onClick={() => onStartChat(role)}
@@ -677,6 +755,48 @@ export const DetailModal: React.FC<DetailModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Story Reader Modal */}
+      <StoryReaderModal
+        isOpen={Boolean(activeStory)}
+        role={role}
+        story={activeStory}
+        onClose={() => setActiveStory(null)}
+        onShowToast={onShowToast}
+        onStartChat={onStartChat}
+      />
+
+      {/* Story Create Modal */}
+      <StoryCreateModal
+        isOpen={showStoryCreate}
+        role={role}
+        userProfile={userProfile}
+        onClose={() => setShowStoryCreate(false)}
+        onCreated={handleStoryCreated}
+        onShowToast={onShowToast}
+        onDeductMoney={onDeductMoney}
+      />
+
+      {/* Theater Player Modal */}
+      <TheaterPlayerModal
+        isOpen={Boolean(activeTheater)}
+        role={role}
+        theater={activeTheater}
+        onClose={() => setActiveTheater(null)}
+        onShowToast={onShowToast}
+        onStartChat={onStartChat}
+      />
+
+      {/* Theater Create Modal */}
+      <TheaterCreateModal
+        isOpen={showTheaterCreate}
+        role={role}
+        userProfile={userProfile}
+        onClose={() => setShowTheaterCreate(false)}
+        onCreated={handleTheaterCreated}
+        onShowToast={onShowToast}
+        onDeductMoney={onDeductMoney}
+      />
     </div>
   );
 };

@@ -118,6 +118,43 @@ export interface MomentPost {
   tag?: string;
 }
 
+export interface StoryLineItem {
+  id: string;
+  roleId: string;
+  title: string;
+  summary: string;
+  wordCount: number;
+  author: string;
+  isCustom?: boolean;
+  paragraphs: string[];
+  choices?: Array<{ id: string; text: string; response: string }>;
+  createdAt?: string;
+}
+
+export interface TheaterScene {
+  id: string;
+  speaker: string;
+  avatar?: string;
+  dialogue: string;
+  hasVoice?: boolean;
+  bgImage?: string;
+  dynamicGif?: string;
+  choices?: string[];
+}
+
+export interface MiniTheaterItem {
+  id: string;
+  roleId: string;
+  title: string;
+  desc: string;
+  wordCount: number;
+  bgImage: string;
+  dynamicGif: string;
+  scenes: TheaterScene[];
+  isCustom?: boolean;
+  createdAt?: string;
+}
+
 export type AppPage =
   | 'login'
   | 'recommend'

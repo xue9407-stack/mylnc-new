@@ -1501,6 +1501,7 @@ export default function App() {
         }
         isOpen={Boolean(detailRole)}
         isFollowed={detailRole ? follows.includes(detailRole.id) : false}
+        userProfile={userProfile}
         onClose={() => setDetailRole(null)}
         onToggleFollow={() => {
           if (detailRole) handleToggleFollow(detailRole.id);
@@ -1512,6 +1513,14 @@ export default function App() {
           if (detailRole) handleUpdateIntimacy(detailRole.id, added);
         }}
         onOpenRecharge={() => setShowRechargeModal(true)}
+        onDeductMoney={(amount) => {
+          if (userProfile.money < amount) return false;
+          setUserProfile((prev) => ({
+            ...prev,
+            money: Math.max(0, prev.money - amount),
+          }));
+          return true;
+        }}
       />
 
       <RechargeModal
